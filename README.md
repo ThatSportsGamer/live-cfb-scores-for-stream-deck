@@ -1,0 +1,111 @@
+# Live CFB Scores — Stream Deck Plugin
+
+A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
+
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.0-green)
+
+---
+
+## Features
+
+- **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
+- **Possession indicator** — a dot marks which team has the ball
+- **Red zone highlighting** — the clock/quarter line turns orange-red when either team is in the red zone
+- **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time
+- **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
+- **Score-change flash** — when a team scores, the button flashes in that team's primary color
+- **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
+- **Gamecast shortcut** — press any button to open that game directly in ESPN Gamecast
+- **No-flicker updates** — buttons only redraw when the display actually changes
+- **Multi-button support** — add as many team buttons as you want, each refreshes independently
+- **All 136 FBS teams** across all 11 conferences (SEC, Big Ten, ACC, Big 12, American, Mountain West, Conference USA, MAC, Sun Belt, Pac-12, and Independents)
+
+---
+
+## Requirements
+
+- [Elgato Stream Deck](https://www.elgato.com/stream-deck) hardware
+- [Stream Deck software](https://www.elgato.com/downloads) version 6.9 or later (Mac or Windows)
+- No account or API key required — the plugin uses ESPN's free public scoreboard API
+
+---
+
+## Installation
+
+1. Download the latest **`Live CFB Scores.streamDeckPlugin`** from the [Releases](../../releases) page
+2. Double-click the file — Stream Deck will install it automatically
+3. The plugin will appear in the Stream Deck action picker under **Live CFB Scores**
+
+---
+
+## Setup
+
+1. Drag the **Live CFB Scores** action onto any button
+2. In the settings panel on the right, select your team from the dropdown (organized by conference)
+3. That's it — the button will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
+
+---
+
+## What the Button Shows
+
+**Before the game:**
+```
+MRSH @ UGA
+ Sat 7:30 PM
+```
+
+**Live game:**
+```
+MRSH   7
+● UGA 45
+Q4 2:13
+```
+
+**Final score:**
+```
+MRSH   7
+UGA   45
+ Final
+```
+
+**Off week:**
+```
+ UGA
+No Game
+```
+
+---
+
+## How It Works
+
+The plugin polls [ESPN's public college football scoreboard API](https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard) once every 30 seconds per button. No API key or account is required. The plugin is fully self-contained — it uses only Node.js built-in modules and requires no external dependencies.
+
+Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 15-day window (one week back, one week ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final — so the button holds onto a result until the next game appears on the schedule.
+
+---
+
+## Uninstalling
+
+Open Stream Deck → Preferences → Plugins, select **Live CFB Scores**, and click the **−** button.
+
+---
+
+## Contributing
+
+Bug reports and feature requests are welcome — open an [Issue](../../issues) to get started.
+
+---
+
+## Disclaimer
+
+This plugin is not affiliated with, endorsed by, or sponsored by the NCAA, ESPN, or any conference or institution. All data is sourced from ESPN's public scoreboard API and is subject to ESPN's terms of use. This plugin is intended for individual, personal, non-commercial use only.
+
+---
+
+## Credits
+
+Created by **T.J. Lauerman aka ThatSportsGamer**
+
+Created with Claude Cowork by Anthropic
+
+Data provided by [ESPN](https://www.espn.com/college-football/)

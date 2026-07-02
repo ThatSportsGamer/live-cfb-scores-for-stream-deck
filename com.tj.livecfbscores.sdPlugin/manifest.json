@@ -1,0 +1,46 @@
+{
+    "Author": "T.J. Lauerman aka ThatSportsGamer",
+    "CodePath": "plugin.js",
+    "Description": "Shows live college football scores on your Stream Deck. Each button tracks one FBS team — see the current score, quarter, clock, and possession at a glance.",
+    "Name": "Live CFB Scores",
+    "UUID": "com.tj.livecfbscores",
+    "Category": "Live Sports Scores",
+    "URL": "https://github.com/ThatSportsGamer/live-cfb-scores-for-stream-deck",
+    "Icon": "imgs/plugin-icon",
+    "CategoryIcon": "imgs/category-icon",
+    "Version": "1.0.0.0",
+    "SDKVersion": 3,
+    "Software": {
+        "MinimumVersion": "6.9"
+    },
+    "OS": [
+        {
+            "Platform": "mac",
+            "MinimumVersion": "10.15"
+        },
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
+        }
+    ],
+    "Nodejs": {
+        "Version": "20",
+        "Debug": "enabled"
+    },
+    "Actions": [
+        {
+            "Name": "Live CFB Scores",
+            "UUID": "com.tj.livecfbscores.score",
+            "Icon": "imgs/action-icon",
+            "Tooltip": "Shows live score for your chosen FBS college football team. Updates every 30 seconds.",
+            "PropertyInspectorPath": "property-inspector.html",
+            "States": [
+                {
+                    "Image": "imgs/action-icon",
+                    "Title": ""
+                }
+            ],
+            "SupportedInMultiActions": false
+        }
+    ]
+}

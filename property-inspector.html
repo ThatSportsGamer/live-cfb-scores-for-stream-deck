@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>CFB Score Settings</title>
+    <style>
+        :root {
+            --bg:        #1e1e1e;
+            --surface:   #2c2c2c;
+            --border:    #444;
+            --text:      #d4d4d4;
+            --accent:    #6B2C2C;
+            --accent-hi: #C0392B;
+            --radius:    6px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 13px;
+            padding: 12px;
+        }
+
+        h2 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #fff;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            color: #aaa;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        select {
+            width: 100%;
+            padding: 7px 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-hi);
+        }
+
+        optgroup {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .info-box {
+            margin-top: 14px;
+            padding: 9px 11px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent-hi);
+            border-radius: var(--radius);
+            font-size: 11px;
+            color: #999;
+            line-height: 1.5;
+        }
+
+        .info-box strong { color: var(--text); }
+
+        .selected-team {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            font-size: 12px;
+            color: #ccc;
+            display: none;
+        }
+
+        .selected-team span {
+            font-weight: bold;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🏈 Live CFB Scores</h2>
+
+<label for="teamSelect">Team</label>
+<select id="teamSelect">
+    <option value="">— Select a team —</option>
+
+    <optgroup label="Southeastern Conference">
+        <option value="333" data-abbr="ALA">Alabama Crimson Tide</option>
+        <option value="8" data-abbr="ARK">Arkansas Razorbacks</option>
+        <option value="2" data-abbr="AUB">Auburn Tigers</option>
+        <option value="57" data-abbr="FLA">Florida Gators</option>
+        <option value="61" data-abbr="UGA">Georgia Bulldogs</option>
+        <option value="96" data-abbr="UK">Kentucky Wildcats</option>
+        <option value="99" data-abbr="LSU">LSU Tigers</option>
+        <option value="344" data-abbr="MSST">Mississippi State Bulldogs</option>
+        <option value="142" data-abbr="MIZ">Missouri Tigers</option>
+        <option value="201" data-abbr="OU">Oklahoma Sooners</option>
+        <option value="145" data-abbr="MISS">Ole Miss Rebels</option>
+        <option value="2579" data-abbr="SC">South Carolina Gamecocks</option>
+        <option value="2633" data-abbr="TENN">Tennessee Volunteers</option>
+        <option value="251" data-abbr="TEX">Texas Longhorns</option>
+        <option value="245" data-abbr="TA&M">Texas A&amp;M Aggies</option>
+        <option value="238" data-abbr="VAN">Vanderbilt Commodores</option>
+    </optgroup>
+
+    <optgroup label="Big Ten Conference">
+        <option value="356" data-abbr="ILL">Illinois Fighting Illini</option>
+        <option value="84" data-abbr="IU">Indiana Hoosiers</option>
+        <option value="2294" data-abbr="IOWA">Iowa Hawkeyes</option>
+        <option value="120" data-abbr="MD">Maryland Terrapins</option>
+        <option value="130" data-abbr="MICH">Michigan Wolverines</option>
+        <option value="127" data-abbr="MSU">Michigan State Spartans</option>
+        <option value="135" data-abbr="MINN">Minnesota Golden Gophers</option>
+        <option value="158" data-abbr="NEB">Nebraska Cornhuskers</option>
+        <option value="77" data-abbr="NU">Northwestern Wildcats</option>
+        <option value="194" data-abbr="OSU">Ohio State Buckeyes</option>
+        <option value="2483" data-abbr="ORE">Oregon Ducks</option>
+        <option value="213" data-abbr="PSU">Penn State Nittany Lions</option>
+        <option value="2509" data-abbr="PUR">Purdue Boilermakers</option>
+        <option value="164" data-abbr="RUTG">Rutgers Scarlet Knights</option>
+        <option value="26" data-abbr="UCLA">UCLA Bruins</option>
+        <option value="30" data-abbr="USC">USC Trojans</option>
+        <option value="264" data-abbr="WASH">Washington Huskies</option>
+        <option value="275" data-abbr="WIS">Wisconsin Badgers</option>
+    </optgroup>
+
+    <optgroup label="Atlantic Coast Conference">
+        <option value="103" data-abbr="BC">Boston College Eagles</option>
+        <option value="25" data-abbr="CAL">California Golden Bears</option>
+        <option value="228" data-abbr="CLEM">Clemson Tigers</option>
+        <option value="150" data-abbr="DUKE">Duke Blue Devils</option>
+        <option value="52" data-abbr="FSU">Florida State Seminoles</option>
+        <option value="59" data-abbr="GT">Georgia Tech Yellow Jackets</option>
+        <option value="97" data-abbr="LOU">Louisville Cardinals</option>
+        <option value="2390" data-abbr="MIA">Miami Hurricanes</option>
+        <option value="152" data-abbr="NCSU">NC State Wolfpack</option>
+        <option value="153" data-abbr="UNC">North Carolina Tar Heels</option>
+        <option value="221" data-abbr="PITT">Pittsburgh Panthers</option>
+        <option value="2567" data-abbr="SMU">SMU Mustangs</option>
+        <option value="24" data-abbr="STAN">Stanford Cardinal</option>
+        <option value="183" data-abbr="SYR">Syracuse Orange</option>
+        <option value="258" data-abbr="UVA">Virginia Cavaliers</option>
+        <option value="259" data-abbr="VT">Virginia Tech Hokies</option>
+        <option value="154" data-abbr="WAKE">Wake Forest Demon Deacons</option>
+    </optgroup>
+
+    <optgroup label="Big 12 Conference">
+        <option value="12" data-abbr="ARIZ">Arizona Wildcats</option>
+        <option value="9" data-abbr="ASU">Arizona State Sun Devils</option>
+        <option value="252" data-abbr="BYU">BYU Cougars</option>
+        <option value="239" data-abbr="BAY">Baylor Bears</option>
+        <option value="2132" data-abbr="CIN">Cincinnati Bearcats</option>
+        <option value="38" data-abbr="COLO">Colorado Buffaloes</option>
+        <option value="248" data-abbr="HOU">Houston Cougars</option>
+        <option value="66" data-abbr="ISU">Iowa State Cyclones</option>
+        <option value="2305" data-abbr="KU">Kansas Jayhawks</option>
+        <option value="2306" data-abbr="KSU">Kansas State Wildcats</option>
+        <option value="197" data-abbr="OKST">Oklahoma State Cowboys</option>
+        <option value="2628" data-abbr="TCU">TCU Horned Frogs</option>
+        <option value="2641" data-abbr="TTU">Texas Tech Red Raiders</option>
+        <option value="2116" data-abbr="UCF">UCF Knights</option>
+        <option value="254" data-abbr="UTAH">Utah Utes</option>
+        <option value="277" data-abbr="WVU">West Virginia Mountaineers</option>
+    </optgroup>
+
+    <optgroup label="American Conference">
+        <option value="349" data-abbr="ARMY">Army Black Knights</option>
+        <option value="2429" data-abbr="CLT">Charlotte 49ers</option>
+        <option value="151" data-abbr="ECU">East Carolina Pirates</option>
+        <option value="2226" data-abbr="FAU">Florida Atlantic Owls</option>
+        <option value="235" data-abbr="MEM">Memphis Tigers</option>
+        <option value="2426" data-abbr="NAVY">Navy Midshipmen</option>
+        <option value="249" data-abbr="UNT">North Texas Mean Green</option>
+        <option value="242" data-abbr="RICE">Rice Owls</option>
+        <option value="58" data-abbr="USF">South Florida Bulls</option>
+        <option value="218" data-abbr="TEM">Temple Owls</option>
+        <option value="2655" data-abbr="TULN">Tulane Green Wave</option>
+        <option value="202" data-abbr="TLSA">Tulsa Golden Hurricane</option>
+        <option value="5" data-abbr="UAB">UAB Blazers</option>
+        <option value="2636" data-abbr="UTSA">UTSA Roadrunners</option>
+    </optgroup>
+
+    <optgroup label="Mountain West Conference">
+        <option value="2005" data-abbr="AF">Air Force Falcons</option>
+        <option value="68" data-abbr="BOIS">Boise State Broncos</option>
+        <option value="36" data-abbr="CSU">Colorado State Rams</option>
+        <option value="278" data-abbr="FRES">Fresno State Bulldogs</option>
+        <option value="62" data-abbr="HAW">Hawai'i Rainbow Warriors</option>
+        <option value="2440" data-abbr="NEV">Nevada Wolf Pack</option>
+        <option value="167" data-abbr="UNM">New Mexico Lobos</option>
+        <option value="21" data-abbr="SDSU">San Diego State Aztecs</option>
+        <option value="23" data-abbr="SJSU">San José State Spartans</option>
+        <option value="2439" data-abbr="UNLV">UNLV Rebels</option>
+        <option value="328" data-abbr="USU">Utah State Aggies</option>
+        <option value="2751" data-abbr="WYO">Wyoming Cowboys</option>
+    </optgroup>
+
+    <optgroup label="Conference USA">
+        <option value="48" data-abbr="DEL">Delaware Blue Hens</option>
+        <option value="2229" data-abbr="FIU">Florida International Panthers</option>
+        <option value="55" data-abbr="JXST">Jacksonville State Gamecocks</option>
+        <option value="338" data-abbr="KENN">Kennesaw State Owls</option>
+        <option value="2335" data-abbr="LIB">Liberty Flames</option>
+        <option value="2348" data-abbr="LT">Louisiana Tech Bulldogs</option>
+        <option value="2393" data-abbr="MTSU">Middle Tennessee Blue Raiders</option>
+        <option value="2623" data-abbr="MOST">Missouri State Bears</option>
+        <option value="166" data-abbr="NMSU">New Mexico State Aggies</option>
+        <option value="2534" data-abbr="SHSU">Sam Houston Bearkats</option>
+        <option value="2638" data-abbr="UTEP">UTEP Miners</option>
+        <option value="98" data-abbr="WKU">Western Kentucky Hilltoppers</option>
+    </optgroup>
+
+    <optgroup label="Mid-American Conference">
+        <option value="2006" data-abbr="AKR">Akron Zips</option>
+        <option value="2050" data-abbr="BALL">Ball State Cardinals</option>
+        <option value="189" data-abbr="BGSU">Bowling Green Falcons</option>
+        <option value="2084" data-abbr="BUF">Buffalo Bulls</option>
+        <option value="2117" data-abbr="CMU">Central Michigan Chippewas</option>
+        <option value="2199" data-abbr="EMU">Eastern Michigan Eagles</option>
+        <option value="2309" data-abbr="KENT">Kent State Golden Flashes</option>
+        <option value="193" data-abbr="M-OH">Miami (OH) RedHawks</option>
+        <option value="2459" data-abbr="NIU">Northern Illinois Huskies</option>
+        <option value="195" data-abbr="OHIO">Ohio Bobcats</option>
+        <option value="2649" data-abbr="TOL">Toledo Rockets</option>
+        <option value="113" data-abbr="MASS">Massachusetts Minutemen</option>
+        <option value="2711" data-abbr="WMU">Western Michigan Broncos</option>
+    </optgroup>
+
+    <optgroup label="Sun Belt Conference">
+        <option value="2026" data-abbr="APP">App State Mountaineers</option>
+        <option value="2032" data-abbr="ARST">Arkansas State Red Wolves</option>
+        <option value="324" data-abbr="CCU">Coastal Carolina Chanticleers</option>
+        <option value="290" data-abbr="GASO">Georgia Southern Eagles</option>
+        <option value="2247" data-abbr="GAST">Georgia State Panthers</option>
+        <option value="256" data-abbr="JMU">James Madison Dukes</option>
+        <option value="309" data-abbr="UL">Louisiana Ragin' Cajuns</option>
+        <option value="276" data-abbr="MRSH">Marshall Thundering Herd</option>
+        <option value="295" data-abbr="ODU">Old Dominion Monarchs</option>
+        <option value="6" data-abbr="USA">South Alabama Jaguars</option>
+        <option value="2572" data-abbr="USM">Southern Miss Golden Eagles</option>
+        <option value="326" data-abbr="TXST">Texas State Bobcats</option>
+        <option value="2653" data-abbr="TROY">Troy Trojans</option>
+        <option value="2433" data-abbr="ULM">UL Monroe Warhawks</option>
+    </optgroup>
+
+    <optgroup label="Pac-12 Conference">
+        <option value="204" data-abbr="ORST">Oregon State Beavers</option>
+        <option value="265" data-abbr="WSU">Washington State Cougars</option>
+    </optgroup>
+
+    <optgroup label="FBS Independents">
+        <option value="87" data-abbr="ND">Notre Dame Fighting Irish</option>
+        <option value="41" data-abbr="CONN">UConn Huskies</option>
+    </optgroup>
+</select>
+
+<div class="selected-team" id="selectedTeamInfo">
+    Tracking: <span id="selectedTeamName"></span>
+</div>
+
+<div class="info-box">
+    <strong>How it works:</strong><br>
+    • Scores refresh automatically every <strong>30 seconds</strong><br>
+    • Press the button anytime to refresh immediately, or to open the game in ESPN Gamecast<br>
+    • Shows score, quarter, clock, and possession during live games<br>
+    • Shows matchup and kickoff time before the game<br>
+    • Red-zone highlighting and a final score with OT label when the game ends
+</div>
+
+<script>
+    var websocket = null;
+    var uuid = null;
+    var actionContext = null;
+    var actionUUID = null;
+
+    // Called by Stream Deck when the property inspector loads
+    function connectElgatoStreamDeckSocket(port, propertyInspectorUUID, registerEvent, info, actionInfo) {
+        uuid = propertyInspectorUUID;
+
+        try {
+            var parsed = JSON.parse(actionInfo);
+            actionContext = parsed.context;
+            actionUUID    = parsed.action;
+        } catch(e) {}
+
+        websocket = new WebSocket('ws://127.0.0.1:' + port);
+
+        websocket.onopen = function() {
+            websocket.send(JSON.stringify({ event: registerEvent, uuid: propertyInspectorUUID }));
+            websocket.send(JSON.stringify({ event: 'getSettings', context: propertyInspectorUUID }));
+        };
+
+        websocket.onmessage = function(evt) {
+            try {
+                var data = JSON.parse(evt.data);
+                if (data.event === 'didReceiveSettings') {
+                    applySettings(data.payload.settings);
+                }
+            } catch(e) {}
+        };
+    }
+
+    function applySettings(settings) {
+        if (!settings) return;
+        if (settings.teamId) {
+            var sel = document.getElementById('teamSelect');
+            sel.value = settings.teamId;
+            showSelectedTeam(sel);
+        }
+    }
+
+    function showSelectedTeam(sel) {
+        var infoEl = document.getElementById('selectedTeamInfo');
+        var nameEl = document.getElementById('selectedTeamName');
+        if (sel.value) {
+            nameEl.textContent = sel.options[sel.selectedIndex].text;
+            infoEl.style.display = 'block';
+        } else {
+            infoEl.style.display = 'none';
+        }
+    }
+
+    function saveSettings() {
+        if (!websocket) return;
+        var teamSel  = document.getElementById('teamSelect');
+        var abbr     = teamSel.options[teamSel.selectedIndex].getAttribute('data-abbr');
+        var settings = {
+            teamId:   teamSel.value,
+            teamAbbr: abbr || '',
+        };
+        websocket.send(JSON.stringify({ event: 'setSettings', context: uuid, payload: settings }));
+        websocket.send(JSON.stringify({ event: 'sendToPlugin', context: uuid, action: actionUUID, payload: { event: 'settingsChanged', settings: settings } }));
+    }
+
+    document.getElementById('teamSelect').addEventListener('change', function() {
+        showSelectedTeam(this);
+        if (this.value) saveSettings();
+    });
+</script>
+
+<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #444; text-align: center; color: #666; font-size: 10px; line-height: 1.5;">
+    Created by T.J. Lauerman<br>aka ThatSportsGamer
+</div>
+
+</body>
+</html>
