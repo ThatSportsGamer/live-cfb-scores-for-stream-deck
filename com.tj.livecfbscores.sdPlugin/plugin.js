@@ -258,9 +258,17 @@ function handleEvent({ event, context, payload }) {
                 log('keyUp — opening URL:', game.link);
                 ws.send(JSON.stringify({ event: 'openUrl', payload: { url: game.link } }));
             } else {
-                log('keyUp — no game, refreshing');
-                lastRender.delete(context);
-                refreshButton(context);
+                const cfg    = instances.get(context) || {};
+                const teamId = cfg.teamId;
+                if (teamId) {
+                    const scheduleUrl = 'https://www.espn.com/college-football/team/schedule/_/id/' + teamId;
+                    log('keyUp — no game, opening schedule:', scheduleUrl);
+                    ws.send(JSON.stringify({ event: 'openUrl', payload: { url: scheduleUrl } }));
+                } else {
+                    log('keyUp — no game, no teamId, refreshing');
+                    lastRender.delete(context);
+                    refreshButton(context);
+                }
             }
             break;
         }
