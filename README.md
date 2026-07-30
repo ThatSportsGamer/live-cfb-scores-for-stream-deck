@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.1-green)
 
 ---
 
@@ -95,6 +95,19 @@ Open Stream Deck → Preferences → Plugins, select **Live CFB Scores**, and cl
 ## Contributing
 
 Bug reports and feature requests are welcome — open an [Issue](../../issues) to get started.
+
+---
+
+## Changelog
+
+**1.0.1.0**
+- Added an off-week shortcut — pressing a button with no game scheduled now opens that team's schedule on ESPN instead of just refreshing
+- Rebuilt the settings panel with a search box (type a team or location name for instant results) alongside the existing conference/team browse dropdowns
+- Fixed a centering inconsistency in the live score line caused by an inaccurate character-width estimate; text now measures against real Helvetica glyph widths
+- Added `flashing` state cleanup on button removal to prevent a rare stuck-flash edge case
+
+**1.0.0.0**
+- Initial release — live scores, possession indicator, red zone highlighting, pre-game/final states, score-change flash, end-of-game fireworks, Gamecast shortcut, and all 136 FBS teams across 11 conferences
 
 ---
 
