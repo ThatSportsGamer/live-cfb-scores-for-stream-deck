@@ -16,6 +16,7 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 - **Score-change flash** — when a team scores, the button flashes in that team's primary color
 - **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
 - **Gamecast shortcut** — press any button to open that game directly in ESPN Gamecast
+- **Off-week shortcut** — if your team has no game scheduled, pressing the button opens that team's full schedule on ESPN instead
 - **No-flicker updates** — buttons only redraw when the display actually changes
 - **Multi-button support** — add as many team buttons as you want, each refreshes independently
 - **All 136 FBS teams** across all 11 conferences (SEC, Big Ten, ACC, Big 12, American, Mountain West, Conference USA, MAC, Sun Belt, Pac-12, and Independents)
@@ -41,7 +42,7 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 ## Setup
 
 1. Drag the **Live CFB Scores** action onto any button
-2. In the settings panel on the right, select your team from the dropdown (organized by conference)
+2. In the settings panel on the right, find your team by typing into the search box or by picking a conference and then a team from the dropdowns
 3. That's it — the button will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
 
 ---
@@ -73,6 +74,7 @@ UGA   45
  UGA
 No Game
 ```
+Pressing the button in this state opens that team's schedule on ESPN.
 
 ---
 
