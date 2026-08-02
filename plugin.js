@@ -33,20 +33,85 @@ process.on('unhandledRejection', err => log('UNHANDLED:', String(err)));
 const DEBUG_ANCHOR_DATE = null;
 if (DEBUG_ANCHOR_DATE) log('*** TEST MODE: pretending today is ' + DEBUG_ANCHOR_DATE + ' ***');
 
-// Set to a game object to skip the ESPN fetch entirely and render this fixed
-// game on every refresh, on whatever team/button you assign — handy for seeing
-// rendering changes (colors, layout, possession dot) on real hardware without
-// waiting for an actual live game. MUST be set back to null before shipping.
-// Example:
-// const DEBUG_FAKE_GAME = {
-//     state: 'live', matchup: 'ALA @ UGA', eventId: 'debug',
-//     link: 'https://www.espn.com/college-football/',
-//     awayId: '333', homeId: '61', awayAbbr: 'ALA', homeAbbr: 'UGA',
-//     awayScore: 17, homeScore: 21, period: 3, clock: '8:42',
-//     statusName: 'STATUS_IN_PROGRESS', possession: '61', isRedZone: false,
+// Keyed by teamId — skips the ESPN fetch for that team only and renders the
+// fixed game/state below instead, on whatever button that team is assigned
+// to. Every other team keeps hitting the real API as normal, so you can put
+// a different test scenario on each button at the same time (handy for
+// lining up Marketplace screenshots without waiting for real games).
+// A value of `null` forces that team's button into the "No Game" / off-week
+// state. MUST be set back to {} before shipping a release.
+// Example — five buttons, five different states at once:
+// const DEBUG_FAKE_GAMES = {
+//     // Pre-game — assign this to Alabama (333)
+//     '333': {
+//         state: 'preview', matchup: 'ALA @ UGA', eventId: 'debug-preview',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '333', homeId: '61', awayAbbr: 'ALA', homeAbbr: 'UGA',
+//         time: 'Sat 7:30 PM',
+//     },
+//     // Live, with possession + a normal (gold) clock line — assign to Georgia (61)
+//     '61': {
+//         state: 'live', matchup: 'MRSH @ UGA', eventId: 'debug-live',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '276', homeId: '61', awayAbbr: 'MRSH', homeAbbr: 'UGA',
+//         awayScore: 7, homeScore: 21, period: 3, clock: '8:42',
+//         statusName: 'STATUS_IN_PROGRESS', possession: '61', isRedZone: false,
+//     },
+//     // Live, in the red zone (orange-red clock line) — assign to Ohio State (194)
+//     '194': {
+//         state: 'live', matchup: 'PSU @ OSU', eventId: 'debug-redzone',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '213', homeId: '194', awayAbbr: 'PSU', homeAbbr: 'OSU',
+//         awayScore: 14, homeScore: 17, period: 4, clock: '0:48',
+//         statusName: 'STATUS_IN_PROGRESS', possession: '194', isRedZone: true,
+//     },
+//     // Final, with OT label — assign to Michigan (130)
+//     '130': {
+//         state: 'final', matchup: 'MICH @ WIS', eventId: 'debug-final',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '130', homeId: '275', awayAbbr: 'MICH', homeAbbr: 'WIS',
+//         awayScore: 27, homeScore: 24, period: 5,
+//     },
+//     // Off week / no game — assign to Texas (251)
+//     '251': null,
 // };
-const DEBUG_FAKE_GAME = null;
-if (DEBUG_FAKE_GAME) log('*** TEST MODE: returning fake game ***');
+// Previously used to line up the four-button Marketplace screenshot —
+// uncomment and reassign these teams to buttons any time you need to
+// reproduce that shot or test a similar spread of states at once.
+// const DEBUG_FAKE_GAMES = {
+//     // Finished game, final score — assign this to Florida State (52)
+//     '52': {
+//         state: 'final', matchup: 'CLEM @ FSU', eventId: 'debug-final',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '228', homeId: '52', awayAbbr: 'CLEM', homeAbbr: 'FSU',
+//         awayScore: 17, homeScore: 20, period: 4,
+//     },
+//     // Early game, 0-7, 8:24 left in the 1st, in the red zone — assign to LSU (99)
+//     '99': {
+//         state: 'live', matchup: 'OU @ LSU', eventId: 'debug-early',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '201', homeId: '99', awayAbbr: 'OU', homeAbbr: 'LSU',
+//         awayScore: 0, homeScore: 7, period: 1, clock: '8:24',
+//         statusName: 'STATUS_IN_PROGRESS', possession: '99', isRedZone: true,
+//     },
+//     // Mid game, realistic score, under 2:00 left in the 1st half — assign to Tennessee (2633)
+//     '2633': {
+//         state: 'live', matchup: 'MISS @ TENN', eventId: 'debug-midgame',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '145', homeId: '2633', awayAbbr: 'MISS', homeAbbr: 'TENN',
+//         awayScore: 10, homeScore: 13, period: 2, clock: '1:47',
+//         statusName: 'STATUS_IN_PROGRESS', possession: '2633', isRedZone: false,
+//     },
+//     // Pre-game, kicks off at 7:45 PM — assign to USC (30)
+//     '30': {
+//         state: 'preview', matchup: 'ORE @ USC', eventId: 'debug-preview745',
+//         link: 'https://www.espn.com/college-football/',
+//         awayId: '2483', homeId: '30', awayAbbr: 'ORE', homeAbbr: 'USC',
+//         time: 'Sat 7:45 PM',
+//     },
+// };
+const DEBUG_FAKE_GAMES = {};
+if (Object.keys(DEBUG_FAKE_GAMES).length) log('*** TEST MODE: returning fake games for ' + Object.keys(DEBUG_FAKE_GAMES).join(', ') + ' ***');
 
 // ── Parse Stream Deck launch arguments ────────────────────────────────────────
 let sdPort, pluginUUID, registerEvent;
@@ -347,10 +412,24 @@ async function refreshButton(context) {
 }
 
 // ── Text sizing helper — shrink font until the line fits the button width ─────
+// Uses the same real glyph-width table as the centering math (see textWidthPx
+// below) instead of a flat per-char estimate, so wide abbreviations like
+// "WMU" or "MTSU" get sized just as precisely as narrow ones like "LSU".
 function fitFs(text, maxFs) {
     let fs = maxFs;
-    while (fs > 9 && text.length * fs * 0.60 > 64) fs--;
+    while (fs > 9 && textWidthPx(text, fs) > 64) fs--;
     return fs;
+}
+
+// ── Fixed size tiers for the live/final score lines ────────────────────────
+// Every abbreviation in TEAMS is 2-4 characters, so two fixed sizes cover the
+// whole roster: 17pt for 2-3 letter abbrs, 16pt for the wider 4-letter ones.
+// A handful of unusually wide 3-letter abbrs (MEM, HAW, WYO, WKU, WMU) can
+// still run wide at 17pt once paired with a double-digit score, so fitFs()
+// is used as a per-game fallback — it only shrinks further for the specific
+// combos that actually need it, rather than shrinking every game.
+function baseTierFs(abbr) {
+    return abbr.length >= 4 ? 16 : 17;
 }
 
 // Real Helvetica-Bold glyph widths (per 1000 em units, from the standard AFM
@@ -368,6 +447,10 @@ const GLYPH_WIDTH_1000 = {
     S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
     0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556,
     '&': 778, '-': 333, // covers the two non-alpha abbrs in TEAMS: TA&M, M-OH
+    ' ': 278, // real Helvetica-Bold space width — was falling back to the 600
+              // generic default (nearly a full capital letter wide), which made
+              // fitFs() overestimate "ABBR SCORE" and shrink the font a point
+              // smaller than it needed to for most matchups.
 };
 function textWidthPx(str, fs) {
     let units = 0;
@@ -380,6 +463,15 @@ function periodLabel(period) {
     if (period >= 1 && period <= 4) return 'Q' + period;
     const ot = period - 4;
     return ot <= 1 ? 'OT' : ot + 'OT';
+}
+
+// Parses ESPN's "M:SS" display clock into total seconds — returns null for
+// anything that doesn't match (e.g. an empty string during a status change).
+function parseClockSeconds(clockStr) {
+    if (!clockStr) return null;
+    const m = /^(\d+):(\d{2})$/.exec(clockStr.trim());
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
 // ── Build button display lines ────────────────────────────────────────────────
@@ -396,43 +488,69 @@ function buildLines(game, cfg) {
         const homeBall  = !!game.possession && game.possession === String(game.homeId);
         const awayPlain = game.awayAbbr + ' ' + game.awayScore;
         const homePlain = game.homeAbbr + ' ' + game.homeScore;
-        // -1 vs. the plain single-string fit: the abbreviation/score split below
-        // positions each half independently (see makeImage), which needs a little
-        // extra width margin per side versus one self-centering text block.
-        const fs = Math.max(9, Math.min(fitFs(awayPlain, 18), fitFs(homePlain, 18)) - 1);
+        const ceiling   = Math.min(baseTierFs(game.awayAbbr), baseTierFs(game.homeAbbr));
+        // No extra safety margin needed here — the parts-based split below uses
+        // an explicit GAP of fs*0.28 between the two anchored text elements,
+        // which is close enough to the real Helvetica-Bold space width (0.278em)
+        // that the plain "ABBR SCORE" width check fitFs() does is already an
+        // accurate stand-in for the split rendering.
+        const fs = Math.min(fitFs(awayPlain, ceiling), fitFs(homePlain, ceiling));
 
-        // Possession shown by coloring just the team abbreviation brown \u2014 the
-        // score stays white. Text content never changes length based on
-        // possession, so both lines stay naturally aligned with no shifting.
-        const POSSESSION_BROWN = '#A0522D';
+        // Possession shown by coloring just the team abbreviation \u2014 the score
+        // stays white. Text content never changes length based on possession,
+        // so both lines stay naturally aligned with no shifting. Three states
+        // on the same element: white (no ball) -> brown (has ball) -> orange
+        // (has ball AND in the red zone). Red zone can only ever apply to
+        // whichever team currently has the ball, so this is a strict upgrade
+        // of the possession signal, not a conflicting second one.
+        const POSSESSION_BROWN   = '#C08552';
+        const POSSESSION_REDZONE = '#FF4500';
+        const possessionColor = hasBall => hasBall
+            ? (game.isRedZone ? POSSESSION_REDZONE : POSSESSION_BROWN)
+            : 'white';
         // No leading space on the score part — SVG text elements can trim
         // leading whitespace, which silently ate the gap on real hardware.
         // The visual gap is now an explicit pixel offset in makeImage instead.
         const awayLine = { fs, parts: [
-            { text: game.awayAbbr,            color: awayBall ? POSSESSION_BROWN : 'white' },
+            { text: game.awayAbbr,            color: possessionColor(awayBall) },
             { text: String(game.awayScore),   color: 'white' },
         ] };
         const homeLine = { fs, parts: [
-            { text: game.homeAbbr,            color: homeBall ? POSSESSION_BROWN : 'white' },
+            { text: game.homeAbbr,            color: possessionColor(homeBall) },
             { text: String(game.homeScore),   color: 'white' },
         ] };
 
-        let clockText;
-        if (game.statusName === 'STATUS_HALFTIME') clockText = 'Halftime';
-        else if (game.statusName === 'STATUS_END_PERIOD') clockText = 'End ' + periodLabel(game.period);
-        else clockText = (game.clock || '') + ' ' + periodLabel(game.period);
+        // The clock line no longer tracks red zone (moved onto the possessing
+        // team's abbreviation above) — it only ever shows the two-minute timeout.
+        let clockText, clockColor;
+        if (game.statusName === 'STATUS_HALFTIME') {
+            clockText  = 'Halftime';
+            clockColor = '#FFD700';
+        } else if (game.statusName === 'STATUS_END_PERIOD') {
+            clockText  = 'End ' + periodLabel(game.period);
+            clockColor = '#FFD700';
+        } else {
+            clockText = (game.clock || '') + ' ' + periodLabel(game.period);
+            // Two-minute timeout — pure red. Only applies at the end of the 2nd
+            // and 4th quarters (the real two-minute timeout), not every period.
+            const secondsLeft = parseClockSeconds(game.clock);
+            const isTwoMinTimeout = (game.period === 2 || game.period === 4) &&
+                secondsLeft !== null && secondsLeft <= 120;
+            clockColor = isTwoMinTimeout ? '#FF0000' : '#FFD700';
+        }
 
         return [
             awayLine,
             homeLine,
-            { text: clockText, fs: 11, color: game.isRedZone ? '#FF4500' : '#FFD700' },
+            { text: clockText, fs: 11, color: clockColor },
         ];
     }
 
     if (game.state === 'final') {
         const awayText = game.awayAbbr + ' ' + game.awayScore;
         const homeText = game.homeAbbr + ' ' + game.homeScore;
-        const fs        = Math.min(fitFs(awayText, 18), fitFs(homeText, 18));
+        const ceiling   = Math.min(baseTierFs(game.awayAbbr), baseTierFs(game.homeAbbr));
+        const fs        = Math.min(fitFs(awayText, ceiling), fitFs(homeText, ceiling));
         const ot        = game.period > 4 ? game.period - 4 : 0;
         const label     = ot === 0 ? 'Final' : (ot === 1 ? 'Final/OT' : 'Final/' + ot + 'OT');
         return [
@@ -603,7 +721,11 @@ const teamName  = id => TEAMS[id]?.short || teamAbbr(id);
 
 // ── ESPN API ──────────────────────────────────────────────────────────────────
 function fetchTeamGame(teamId) {
-    if (DEBUG_FAKE_GAME) return Promise.resolve(DEBUG_FAKE_GAME);
+    // hasOwnProperty (not just truthiness) so a `null` entry — used to force the
+    // "No Game" state — is honored instead of falling through to the real API.
+    if (Object.prototype.hasOwnProperty.call(DEBUG_FAKE_GAMES, teamId)) {
+        return Promise.resolve(DEBUG_FAKE_GAMES[teamId]);
+    }
 
     return new Promise((resolve, reject) => {
         const now = DEBUG_ANCHOR_DATE ? new Date(DEBUG_ANCHOR_DATE) : new Date();

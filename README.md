@@ -2,15 +2,15 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.1-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.2-green)
 
 ---
 
 ## Features
 
 - **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
-- **Possession indicator** — a dot marks which team has the ball
-- **Red zone highlighting** — the clock/quarter line turns orange-red when either team is in the red zone
+- **Possession indicator** — the team with the ball is shown in brown, turning orange if they're in the red zone
+- **Two-minute timeout** — the clock turns red during the final 2:00 of the 2nd and 4th quarters
 - **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time
 - **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
 - **Score-change flash** — when a team scores, the button flashes in that team's primary color
@@ -49,6 +49,8 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 
 ## What the Button Shows
 
+![Live CFB Scores button states](screenshots/button-states.png)
+
 **Before the game:**
 ```
 MRSH @ UGA
@@ -58,9 +60,10 @@ MRSH @ UGA
 **Live game:**
 ```
 MRSH   7
-● UGA 45
+UGA   45
 Q4 2:13
 ```
+The team with the ball is colored brown (orange in the red zone); the clock turns red during the two-minute timeout.
 
 **Final score:**
 ```
@@ -99,6 +102,14 @@ Bug reports and feature requests are welcome — open an [Issue](../../issues) t
 ---
 
 ## Changelog
+
+**1.0.2.0**
+- Replaced the plugin icon with properly sized 256×256 / 512×512 (high-DPI) variants per Elgato's Marketplace icon spec
+- Moved the red zone indicator off the clock and onto the possessing team's abbreviation, which now turns orange when they're in the red zone (instead of the clock line changing color)
+- Added a two-minute timeout indicator — the clock turns red during the final 2:00 of the 2nd and 4th quarters
+- Lightened the possession color from a darker sienna to a more legible tan-brown
+- Tuned live/final score line sizing to two fixed sizes (17pt for 2-3 letter abbreviations, 16pt for 4-letter ones) instead of always shrinking dynamically, with an automatic fallback for the handful of especially wide abbreviation/score combinations that would otherwise run too wide for the button
+- Fixed a sizing bug where the space between the abbreviation and score was measured as nearly a full letter wide, shrinking the font a point smaller than necessary in most games
 
 **1.0.1.0**
 - Added an off-week shortcut — pressing a button with no game scheduled now opens that team's schedule on ESPN instead of just refreshing
