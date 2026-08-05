@@ -23,6 +23,30 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 
 ---
 
+## Recent Updates
+
+**v1.0.3.0**
+- Fixed buttons showing "Err" for every team — ESPN started rejecting the plugin's request headers with a 403 page instead of returning score data; requests now use a real browser-style header set (User-Agent, Accept, Accept-Encoding) with matching gzip/brotli response decoding
+
+**v1.0.2.0**
+- Replaced the plugin icon with properly sized 256×256 / 512×512 (high-DPI) variants per Elgato's Marketplace icon spec
+- Moved the red zone indicator off the clock and onto the possessing team's abbreviation, which now turns orange when they're in the red zone (instead of the clock line changing color)
+- Added a two-minute timeout indicator — the clock turns red during the final 2:00 of the 2nd and 4th quarters
+- Lightened the possession color from a darker sienna to a more legible tan-brown
+- Tuned live/final score line sizing to two fixed sizes (17pt for 2-3 letter abbreviations, 16pt for 4-letter ones) instead of always shrinking dynamically, with an automatic fallback for the handful of especially wide abbreviation/score combinations that would otherwise run too wide for the button
+- Fixed a sizing bug where the space between the abbreviation and score was measured as nearly a full letter wide, shrinking the font a point smaller than necessary in most games
+
+**v1.0.1.0**
+- Added an off-week shortcut — pressing a button with no game scheduled now opens that team's schedule on ESPN instead of just refreshing
+- Rebuilt the settings panel with a search box (type a team or location name for instant results) alongside the existing conference/team browse dropdowns
+- Fixed a centering inconsistency in the live score line caused by an inaccurate character-width estimate; text now measures against real Helvetica glyph widths
+- Added `flashing` state cleanup on button removal to prevent a rare stuck-flash edge case
+
+**v1.0.0.0**
+- Initial release — live scores, possession indicator, red zone highlighting, pre-game/final states, score-change flash, end-of-game fireworks, Gamecast shortcut, and all 136 FBS teams across 11 conferences
+
+---
+
 ## Requirements
 
 - [Elgato Stream Deck](https://www.elgato.com/stream-deck) hardware
@@ -98,30 +122,6 @@ Open Stream Deck → Preferences → Plugins, select **Live CFB Scores**, and cl
 ## Contributing
 
 Bug reports and feature requests are welcome — open an [Issue](../../issues) to get started.
-
----
-
-## Changelog
-
-**1.0.3.0**
-- Fixed buttons showing "Err" for every team — ESPN started rejecting the plugin's request headers with a 403 page instead of returning score data; requests now use a real browser-style header set (User-Agent, Accept, Accept-Encoding) with matching gzip/brotli response decoding
-
-**1.0.2.0**
-- Replaced the plugin icon with properly sized 256×256 / 512×512 (high-DPI) variants per Elgato's Marketplace icon spec
-- Moved the red zone indicator off the clock and onto the possessing team's abbreviation, which now turns orange when they're in the red zone (instead of the clock line changing color)
-- Added a two-minute timeout indicator — the clock turns red during the final 2:00 of the 2nd and 4th quarters
-- Lightened the possession color from a darker sienna to a more legible tan-brown
-- Tuned live/final score line sizing to two fixed sizes (17pt for 2-3 letter abbreviations, 16pt for 4-letter ones) instead of always shrinking dynamically, with an automatic fallback for the handful of especially wide abbreviation/score combinations that would otherwise run too wide for the button
-- Fixed a sizing bug where the space between the abbreviation and score was measured as nearly a full letter wide, shrinking the font a point smaller than necessary in most games
-
-**1.0.1.0**
-- Added an off-week shortcut — pressing a button with no game scheduled now opens that team's schedule on ESPN instead of just refreshing
-- Rebuilt the settings panel with a search box (type a team or location name for instant results) alongside the existing conference/team browse dropdowns
-- Fixed a centering inconsistency in the live score line caused by an inaccurate character-width estimate; text now measures against real Helvetica glyph widths
-- Added `flashing` state cleanup on button removal to prevent a rare stuck-flash edge case
-
-**1.0.0.0**
-- Initial release — live scores, possession indicator, red zone highlighting, pre-game/final states, score-change flash, end-of-game fireworks, Gamecast shortcut, and all 136 FBS teams across 11 conferences
 
 ---
 
