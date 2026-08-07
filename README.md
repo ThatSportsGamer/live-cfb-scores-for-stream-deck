@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.3-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.8-green)
 
 ---
 
@@ -24,6 +24,22 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 ---
 
 ## Recent Updates
+
+**v1.0.8.0**
+- Moved the "hold the final" cutoff from Tuesday to Monday at 3:00 AM ET — so a final score now holds through the whole weekend and Monday morning, instead of getting bumped to next week's preview before you've even sat down at your desk
+
+**v1.0.7.0**
+- Final scores now hold through the following Tuesday at 3:00 AM ET instead of getting replaced by next week's matchup the moment it becomes visible in the schedule window
+- Added a "BYE WEEK" state — a team with no game in the current window (while other teams do have games) now shows this instead of the generic "No Game"
+
+**v1.0.6.0**
+- Buttons now refresh every 15 seconds (instead of 30) during the two-minute timeout of the 2nd and 4th quarters, so a score or clock-management play is less likely to be missed between polls. Falls back to the normal 30-second cadence the moment the quarter ends.
+
+**v1.0.5.0**
+- Fixed the possession indicator briefly flashing to white during live games — ESPN's possession/red-zone data occasionally goes blank for a single poll (e.g. during an extra point attempt), and the button now holds onto the last known possession for that specific game instead of reading the gap as "nobody has the ball." Halftime is excluded, since the ball genuinely belongs to no one then.
+
+**v1.0.4.0**
+- Fixed the live score line's possession color occasionally drifting off-center on real hardware — the abbreviation and score now render as a single centered text element instead of two separately positioned ones, so the device's own renderer handles the centering instead of relying on an estimated glyph-width table
 
 **v1.0.3.0**
 - Fixed buttons showing "Err" for every team — ESPN started rejecting the plugin's request headers with a 403 page instead of returning score data; requests now use a real browser-style header set (User-Agent, Accept, Accept-Encoding) with matching gzip/brotli response decoding
@@ -96,12 +112,19 @@ UGA   45
  Final
 ```
 
-**Off week:**
+**Bye week:**
+```
+ UGA
+BYE WEEK
+```
+Shown when other teams have games this week but yours doesn't. Pressing the button opens that team's schedule on ESPN.
+
+**No game found:**
 ```
  UGA
 No Game
 ```
-Pressing the button in this state opens that team's schedule on ESPN.
+Shown before the season starts or after it ends. Also opens that team's schedule on ESPN when pressed.
 
 ---
 

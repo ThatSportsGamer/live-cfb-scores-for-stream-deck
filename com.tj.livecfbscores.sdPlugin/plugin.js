@@ -261,7 +261,8 @@ const flashing       = new Set(); // contexts mid-flash animation
 const refreshing     = new Set(); // contexts mid-async refresh
 const lastRender      = new Map(); // context -> JSON key of last rendered lines
 const currentGame     = new Map(); // context -> parsed game object | null
-const refreshTimers   = new Map(); // context -> intervalId (staggered per-button timers)
+const refreshTimers   = new Map(); // context -> timeoutId (self-rescheduling; cadence varies, see scheduleNextRefresh)
+const lastPossession   = new Map(); // context -> { eventId, possession, isRedZone } — last known-good possession for the current game
 
 // ── Connect to Stream Deck ────────────────────────────────────────────────────
 log('Connecting to Stream Deck on port', sdPort);
@@ -292,9 +293,9 @@ function handleEvent({ event, context, payload }) {
         case 'willAppear':
             instances.set(context, (payload && payload.settings) || {});
             log('willAppear — settings:', instances.get(context));
-            if (refreshTimers.has(context)) clearInterval(refreshTimers.get(context));
-            refreshTimers.set(context, setInterval(() => refreshButton(context), 30_000));
+            if (refreshTimers.has(context)) clearTimeout(refreshTimers.get(context));
             refreshButton(context);
+            scheduleNextRefresh(context);
             break;
 
         case 'willDisappear':
@@ -305,8 +306,9 @@ function handleEvent({ event, context, payload }) {
             currentGame.delete(context);
             refreshing.delete(context);
             flashing.delete(context);
+            lastPossession.delete(context);
             if (refreshTimers.has(context)) {
-                clearInterval(refreshTimers.get(context));
+                clearTimeout(refreshTimers.get(context));
                 refreshTimers.delete(context);
             }
             break;
@@ -349,6 +351,33 @@ function handleEvent({ event, context, payload }) {
     }
 }
 
+// ── Adaptive refresh cadence ───────────────────────────────────────────────────
+// Polls every 30 seconds normally, but drops to every 15 seconds once the game
+// is inside the two-minute timeout window (last 2:00 of the 2nd or 4th
+// quarter) — the stretch where a single missed 30-second window can mean
+// skipping right past a score or a clock-management play entirely. Falls
+// straight back to 30 seconds the moment the quarter ends. Self-rescheduling
+// (setTimeout that re-arms itself after each refresh completes) rather than
+// a fixed setInterval, since the right delay can only be known after seeing
+// the result of the refresh that just happened.
+function nextRefreshDelay(context) {
+    const game = currentGame.get(context);
+    if (game && game.state === 'live' && (game.period === 2 || game.period === 4)) {
+        const secondsLeft = parseClockSeconds(game.clock);
+        if (secondsLeft !== null && secondsLeft <= 120) return 15_000;
+    }
+    return 30_000;
+}
+
+function scheduleNextRefresh(context) {
+    const delay = nextRefreshDelay(context);
+    const timer = setTimeout(async () => {
+        await refreshButton(context);
+        scheduleNextRefresh(context);
+    }, delay);
+    refreshTimers.set(context, timer);
+}
+
 // ── Refresh one button ────────────────────────────────────────────────────────
 async function refreshButton(context) {
     if (refreshing.has(context)) { log('Refresh already in progress, skipping'); return; }
@@ -376,6 +405,35 @@ async function refreshButton(context) {
             refreshing.delete(context);
             playFireworks(context, teamName(winnerId), teamColor(winnerId)).catch(e => log('fireworks error:', e.message));
             return;
+        }
+
+        // ESPN's `situation` block (possession/red zone) occasionally goes blank
+        // for a single poll right around a scoring play — e.g. during an extra
+        // point attempt, right after the touchdown that preceded it — even
+        // though the game is still very much live. Without this, that gap
+        // reads as "nobody has the ball" and the possession indicator visibly
+        // flashes to white and back, which looks like a bug rather than what
+        // it is (a brief upstream data gap). So: hold onto the last known-good
+        // possession for this specific game (matched by eventId, so a stale
+        // value never leaks into a *different* game) and fall back to it only
+        // when the fresh fetch came back empty.
+        //
+        // Halftime is deliberately excluded from that fallback — it's the same
+        // "situation is blank" shape as a PAT gap, but the blank stretch can
+        // run 15-20 real minutes with genuinely nobody holding the ball, so
+        // carrying forward whoever had it before the half would be actively
+        // misleading rather than smoothing over a blip. It's cleared here and
+        // re-armed naturally once real possession data resumes for the second half.
+        if (game && game.state === 'live') {
+            if (game.possession != null) {
+                lastPossession.set(context, { eventId: game.eventId, possession: game.possession, isRedZone: game.isRedZone });
+            } else if (game.statusName !== 'STATUS_HALFTIME') {
+                const last = lastPossession.get(context);
+                if (last && last.eventId === game.eventId) {
+                    game.possession = last.possession;
+                    game.isRedZone  = last.isRedZone;
+                }
+            }
         }
 
         const lines   = buildLines(game, cfg);
@@ -479,6 +537,7 @@ function parseClockSeconds(clockStr) {
 function buildLines(game, cfg) {
     const abbr = cfg.teamAbbr || 'CFB';
     if (!game) return [abbr, 'No Game'];
+    if (game.state === 'bye') return [abbr, 'BYE WEEK'];
 
     if (game.state === 'preview') return [game.matchup, game.time];
     if (game.state === 'ppd')     return [game.matchup, { text: 'PPD',   fs: 16, color: '#E74C3C' }];
@@ -720,6 +779,32 @@ const teamAbbr  = id => TEAMS[id]?.abbr  || '???';
 const teamColor = id => TEAMS[id]?.color || '#FFFFFF';
 const teamName  = id => TEAMS[id]?.short || teamAbbr(id);
 
+// ── "Hold the final" cutoff ─────────────────────────────────────────────────
+// A finished game keeps winning over an upcoming preview until the next
+// Monday, 3:00 AM ET, following that specific final — a fixed weekly rule
+// that needs no extra API call, since it's a pure date calculation. Picked
+// (rather than matching ESPN's own Tuesday week boundary) so that Monday
+// morning — when people are sitting down at their desk for the week — still
+// shows last week's final instead of jumping straight to next week's
+// still-empty preview. Anchored to the final's own kickoff date rather than
+// to "now" so it can't silently re-arm itself forever — recomputing "next
+// Monday 3am from right now" on every poll would, the moment one Monday 3am
+// passes, immediately resolve to the *following* Monday and never actually
+// let the preview take over.
+//
+// Uses local system time, same assumption as the "don't roll to next day
+// until 2am" logic above — this only produces the intended result if the
+// host machine's clock is set to US Eastern time.
+function nextMonday3amAfter(fromMs) {
+    const day       = new Date(fromMs).getDay(); // 0=Sun ... 1=Mon ... 6=Sat
+    const daysUntil = (1 - day + 7) % 7;          // 0 if `fromMs` itself falls on a Monday
+    const candidate = new Date(fromMs);
+    candidate.setDate(candidate.getDate() + daysUntil);
+    candidate.setHours(3, 0, 0, 0);
+    if (candidate.getTime() <= fromMs) candidate.setDate(candidate.getDate() + 7); // already past this Monday's 3am
+    return candidate.getTime();
+}
+
 // ── ESPN API ──────────────────────────────────────────────────────────────────
 function fetchTeamGame(teamId) {
     // hasOwnProperty (not just truthiness) so a `null` entry — used to force the
@@ -787,7 +872,11 @@ function fetchTeamGame(teamId) {
 
 // Pick the single most relevant event for this team out of a multi-week scoreboard:
 // a game in progress beats an upcoming game, which beats a past final (so the button
-// holds last week's result until the next game appears).
+// holds last week's result until the next game appears) — EXCEPT that a final keeps
+// beating an upcoming preview until the following Monday, 3:00 AM ET (see
+// nextMonday3amAfter above). Without this, a final score gets replaced by next
+// week's matchup the instant the next game is close enough to be visible in the
+// rolling window.
 function parseGames(data, teamId, now) {
     try {
         const allEvents = data?.events || [];
@@ -798,7 +887,17 @@ function parseGames(data, teamId, now) {
             if (!comp || !comp.competitors) return false;
             return comp.competitors.some(c => String(c.team?.id) === String(teamId));
         });
-        if (!matches.length) { log('API: no games found for team', teamId); return null; }
+        if (!matches.length) {
+            // Other teams have games in this window but this one doesn't — under
+            // normal weekly cadence that can't happen (the 21-day rolling window
+            // comfortably spans a ~7-day gap between games), so an empty `matches`
+            // alongside a non-empty `allEvents` specifically means this team has
+            // a bye. (Known limitation: a team done for the year during bowl
+            // season while others still play on would also read as empty-matches
+            // and get mislabeled BYE WEEK — rare, and only relevant in December.)
+            log('API: no games found for team', teamId, '— treating as bye week');
+            return { state: 'bye' };
+        }
 
         let best = null, bestRank = -1, bestTime = null;
         for (const e of matches) {
@@ -814,6 +913,23 @@ function parseGames(data, teamId, now) {
                 if (rank === 1 && time > bestTime) { best = e; bestTime = time; } // most recent final
             }
         }
+
+        // No game is currently live — check whether this team's most recent
+        // final is still inside its hold window (before the next Tuesday
+        // 3am ET that follows it) and, if so, prefer it over an upcoming
+        // preview regardless of the rank ordering above.
+        if (bestRank !== 3) {
+            let recentFinal = null, recentFinalTime = -1;
+            for (const e of matches) {
+                const comp  = e.competitions[0];
+                const state = (comp.status || e.status)?.type?.state;
+                if (state !== 'post') continue;
+                const time = new Date(e.date).getTime();
+                if (time > recentFinalTime) { recentFinal = e; recentFinalTime = time; }
+            }
+            if (recentFinal && Date.now() < nextMonday3amAfter(recentFinalTime)) best = recentFinal;
+        }
+
         return parseEvent(best, now);
     } catch (e) {
         log('parseGames error:', e.message);
@@ -917,45 +1033,33 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black') {
     // [{text:'UGA',color:brown}, {text:' 21',color:white}]) instead of a single
     // `text` string — used for the live-game score lines so the possession
     // indicator can recolor just the team abbreviation while the score stays
-    // white. (A single text-anchor="middle" element with multiple colored
-    // <tspan>s is unreliable across SVG renderers and was dropped earlier.)
+    // white.
     //
-    // The two segments are anchored on either side of one shared boundary
-    // point: the left segment is text-anchor="end" at the boundary (its real
-    // right edge lands exactly there) and the right segment is
-    // text-anchor="start" at the same boundary (its real left edge lands
-    // exactly there). Each renderer positions every segment using its own
-    // *actual* glyph widths, so the two can never collide — only the
-    // boundary's overall placement depends on our width estimate, and any
-    // error there just nudges the whole pair slightly off-center instead of
-    // causing an overlap. Both lines always use this same approach regardless
-    // of who has the ball, so the text's own position never shifts when
-    // possession changes.
+    // Both segments live inside ONE text-anchor="middle" element as colored
+    // <tspan>s, so the renderer centers the combined width using its own
+    // real glyph measurements — the same mechanism that already centers the
+    // plain clock line correctly, and the only way to get pixel-accurate
+    // centering on a device whose actual font metrics we can't know in
+    // advance. (An earlier version manually anchored two separate <text>
+    // elements at a boundary point computed from an assumed glyph-width
+    // table; that math was internally symmetric but still depended on our
+    // estimate matching the real renderer's measurements, which is exactly
+    // what made abbreviation/score pairs visibly drift off-center on real
+    // hardware.) The gap between the two segments is a literal space
+    // character in the second tspan's own text content — not a `dx` offset,
+    // which real hardware silently ignored — combined with
+    // `xml:space="preserve"` on the parent <text> so that space survives
+    // instead of being trimmed as ordinary XML whitespace.
     const rows = items.map(({ text, fs, color, parts }, i) => {
         if (i > 0) y += lineHeights[i - 1] - items[i - 1].fs * 0.80 + fs * 0.80;
 
         if (parts && parts.length === 2) {
-            const GAP    = fs * 0.28;   // explicit visual gap — not a space character,
-                                        // which renderers can trim and silently lose
-            // Real per-glyph widths, not a flat per-char estimate — letters like
-            // "U"/"G" are meaningfully wider than "L", so a flat estimate made
-            // different team abbreviations land at different true visual
-            // centers even though they shared the same boundary formula.
-            const w0     = textWidthPx(parts[0].text, fs);
-            const w1     = textWidthPx(parts[1].text, fs);
-            let boundary = 36 - (w0 + w1 + GAP) / 2 + w0;
-            // Defensive clamp: if a renderer's actual glyph widths run wider than
-            // our estimate, keep the boundary far enough from each edge that the
-            // segment anchored there still has reasonable room, rather than
-            // letting the estimate alone push it flush against — or past — PAD.
-            const PAD_X = 4;
-            boundary = Math.max(boundary, PAD_X + w0);
-            boundary = Math.min(boundary, (W - PAD_X) - w1 - GAP);
             return (
-                `<text x="${boundary.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="end" fill="${parts[0].color || color || 'white'}" ` +
-                `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">${escXml(parts[0].text)}</text>` +
-                `<text x="${(boundary + GAP).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="start" fill="${parts[1].color || color || 'white'}" ` +
-                `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">${escXml(parts[1].text)}</text>`
+                `<text x="36" y="${y.toFixed(1)}" text-anchor="middle" xml:space="preserve" ` +
+                `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">` +
+                `<tspan fill="${parts[0].color || color || 'white'}">${escXml(parts[0].text)}</tspan>` +
+                `<tspan fill="${parts[1].color || color || 'white'}"> ${escXml(parts[1].text)}</tspan>` +
+                `</text>`
             );
         }
 
