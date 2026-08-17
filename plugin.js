@@ -254,15 +254,15 @@ class SimpleWS extends events.EventEmitter {
 }
 
 // ── Plugin state ──────────────────────────────────────────────────────────────
-const instances     = new Map(); // context -> { teamId, teamAbbr }
-const prevScores    = new Map(); // context -> { awayScore, homeScore }
-const prevState     = new Map(); // context -> last known game state string
-const flashing       = new Set(); // contexts mid-flash animation
-const refreshing     = new Set(); // contexts mid-async refresh
+const instances      = new Map(); // context -> { teamId, teamAbbr, bgColor, bgOpacity }
+const prevScores     = new Map(); // context -> { awayScore, homeScore }
+const prevState      = new Map(); // context -> last known game state string
+const flashing        = new Set(); // contexts mid-flash animation
+const refreshing      = new Set(); // contexts mid-async refresh
 const lastRender      = new Map(); // context -> JSON key of last rendered lines
 const currentGame     = new Map(); // context -> parsed game object | null
 const refreshTimers   = new Map(); // context -> timeoutId (self-rescheduling; cadence varies, see scheduleNextRefresh)
-const lastPossession   = new Map(); // context -> { eventId, possession, isRedZone } — last known-good possession for the current game
+const lastPossession  = new Map(); // context -> { eventId, possession, isRedZone } — last known-good possession for the current game
 
 // ── Connect to Stream Deck ────────────────────────────────────────────────────
 log('Connecting to Stream Deck on port', sdPort);
@@ -401,10 +401,11 @@ async function refreshButton(context) {
         prevState.set(context, game ? game.state : null);
         if (prevGameState === 'live' && game && game.state === 'final') {
             const winnerIsHome = game.homeScore >= game.awayScore;
-            const winnerId     = winnerIsHome ? game.homeId : game.awayId;
-            log('Game over — fireworks for', teamName(winnerId));
+            const winnerName   = winnerIsHome ? game.homeName  : game.awayName;
+            const winnerColor  = winnerIsHome ? game.homeColor : game.awayColor;
+            log('Game over — fireworks for', winnerName);
             refreshing.delete(context);
-            playFireworks(context, teamName(winnerId), teamColor(winnerId)).catch(e => log('fireworks error:', e.message));
+            playFireworks(context, winnerName, winnerColor).catch(e => log('fireworks error:', e.message));
             return;
         }
 
@@ -450,8 +451,8 @@ async function refreshButton(context) {
                 const homeScored = game.homeScore > prev.homeScore;
                 if (awayScored || homeScored) {
                     const color = (awayScored && homeScored) ? '#FFFFFF'
-                        : awayScored ? teamColor(game.awayId)
-                                     : teamColor(game.homeId);
+                        : awayScored ? game.awayColor
+                                     : game.homeColor;
                     log('Score change — flashing', color);
                     refreshing.delete(context);
                     flashButton(context, color, lines, spacing, resolveBgColor(cfg)).catch(e => log('flashButton error:', e.message));
@@ -472,7 +473,7 @@ async function refreshButton(context) {
 }
 
 // ── Text sizing helper — shrink font until the line fits the button width ─────
-// Uses the same real glyph-width table as the centering math (see textWidthPx
+// Uses the real Helvetica glyph-width table (see GLYPH_WIDTH_1000/textWidthPx
 // below) instead of a flat per-char estimate, so wide abbreviations like
 // "WMU" or "MTSU" get sized just as precisely as narrow ones like "LSU".
 function fitFs(text, maxFs) {
@@ -482,8 +483,9 @@ function fitFs(text, maxFs) {
 }
 
 // ── Fixed size tiers for the live/final score lines ────────────────────────
-// Every abbreviation in TEAMS is 2-4 characters, so two fixed sizes cover the
-// whole roster: 17pt for 2-3 letter abbrs, 16pt for the wider 4-letter ones.
+// Every FBS abbreviation ESPN sends is 2-4 characters, so two fixed sizes
+// cover the whole roster: 17pt for 2-3 letter abbrs, 16pt for the wider
+// 4-letter ones.
 // A handful of unusually wide 3-letter abbrs (MEM, HAW, WYO, WKU, WMU) can
 // still run wide at 17pt once paired with a double-digit score, so fitFs()
 // is used as a per-game fallback — it only shrinks further for the specific
@@ -493,20 +495,22 @@ function baseTierFs(abbr) {
 }
 
 // Real Helvetica-Bold glyph widths (per 1000 em units, from the standard AFM
-// metrics) — used only where we anchor two separately-colored text segments
-// on a shared boundary point (see makeImage). A flat "every char is 0.6em"
-// estimate treats e.g. "UGA" and "ALA" as equal width, but U/G are notably
-// wider than L — that mismatch is what made the two team lines look
-// inconsistently centered against each other on real hardware. Digits are
-// all the same width in Helvetica (tabular figures), so scores were never
-// the issue. This table only needs to cover what can actually appear here:
-// A-Z (abbreviations) and 0-9 (scores).
+// metrics) — used by fitFs()/textWidthPx() above to decide whether an
+// "ABBR SCORE" combo actually fits the button at a given font size. A flat
+// "every char is 0.6em" estimate treats e.g. "UGA" and "ALA" as equal width,
+// but U/G are notably wider than L, which made fitFs() over- or under-shrink
+// some matchups. (Centering itself is handled by the device's own renderer
+// via a single text-anchor="middle" element — see makeImage — so this table
+// no longer factors into centering, only sizing.) Digits are all the same
+// width in Helvetica (tabular figures), so scores were never the issue. This
+// table only needs to cover what can actually appear here: A-Z
+// (abbreviations) and 0-9 (scores).
 const GLYPH_WIDTH_1000 = {
     A: 722, B: 722, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278,
     J: 556, K: 722, L: 611, M: 889, N: 722, O: 778, P: 667, Q: 778, R: 722,
     S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
     0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556,
-    '&': 778, '-': 333, // covers the two non-alpha abbrs in TEAMS: TA&M, M-OH
+    '&': 778, '-': 333, // covers the two non-alpha FBS abbrs: TA&M, M-OH
     ' ': 278, // real Helvetica-Bold space width — was falling back to the 600
               // generic default (nearly a full capital letter wide), which made
               // fitFs() overestimate "ABBR SCORE" and shrink the font a point
@@ -624,161 +628,14 @@ function buildLines(game, cfg) {
     return [abbr, '---'];
 }
 
-// ── Team data (abbr, full name, school short name, primary color) ─────────────
-// Source: ESPN college-football API, FBS teams (groups=80), 11 conferences, 136 teams
-const TEAMS = {
-    // Southeastern Conference (SEC)
-    '333': { abbr: 'ALA', name: 'Alabama Crimson Tide', short: 'Alabama', color: '#9E1B32' },
-    '8': { abbr: 'ARK', name: 'Arkansas Razorbacks', short: 'Arkansas', color: '#A32136' },
-    '2': { abbr: 'AUB', name: 'Auburn Tigers', short: 'Auburn', color: '#002B5C' },
-    '57': { abbr: 'FLA', name: 'Florida Gators', short: 'Florida', color: '#0021A5' },
-    '61': { abbr: 'UGA', name: 'Georgia Bulldogs', short: 'Georgia', color: '#BA0C2F' },
-    '96': { abbr: 'UK', name: 'Kentucky Wildcats', short: 'Kentucky', color: '#0033A0' },
-    '99': { abbr: 'LSU', name: 'LSU Tigers', short: 'LSU', color: '#461D76' },
-    '344': { abbr: 'MSST', name: 'Mississippi State Bulldogs', short: 'Mississippi St', color: '#5D1725' },
-    '142': { abbr: 'MIZ', name: 'Missouri Tigers', short: 'Missouri', color: '#F1B82D' },
-    '201': { abbr: 'OU', name: 'Oklahoma Sooners', short: 'Oklahoma', color: '#990000' },
-    '145': { abbr: 'MISS', name: 'Ole Miss Rebels', short: 'Ole Miss', color: '#13294B' },
-    '2579': { abbr: 'SC', name: 'South Carolina Gamecocks', short: 'South Carolina', color: '#73000A' },
-    '2633': { abbr: 'TENN', name: 'Tennessee Volunteers', short: 'Tennessee', color: '#FF8200' },
-    '251': { abbr: 'TEX', name: 'Texas Longhorns', short: 'Texas', color: '#AF5C37' },
-    '245': { abbr: 'TA&M', name: 'Texas A&M Aggies', short: 'Texas A&M', color: '#500000' },
-    '238': { abbr: 'VAN', name: 'Vanderbilt Commodores', short: 'Vanderbilt', color: '#CFAE70' },
-    // Big Ten Conference (Big Ten)
-    '356': { abbr: 'ILL', name: 'Illinois Fighting Illini', short: 'Illinois', color: '#FF5F05' },
-    '84': { abbr: 'IU', name: 'Indiana Hoosiers', short: 'Indiana', color: '#970310' },
-    '2294': { abbr: 'IOWA', name: 'Iowa Hawkeyes', short: 'Iowa', color: '#231F20' },
-    '120': { abbr: 'MD', name: 'Maryland Terrapins', short: 'Maryland', color: '#CE1126' },
-    '130': { abbr: 'MICH', name: 'Michigan Wolverines', short: 'Michigan', color: '#00274C' },
-    '127': { abbr: 'MSU', name: 'Michigan State Spartans', short: 'Michigan St', color: '#173F35' },
-    '135': { abbr: 'MINN', name: 'Minnesota Golden Gophers', short: 'Minnesota', color: '#5E0A2F' },
-    '158': { abbr: 'NEB', name: 'Nebraska Cornhuskers', short: 'Nebraska', color: '#E31937' },
-    '77': { abbr: 'NU', name: 'Northwestern Wildcats', short: 'Northwestern', color: '#492F92' },
-    '194': { abbr: 'OSU', name: 'Ohio State Buckeyes', short: 'Ohio State', color: '#BA0C2F' },
-    '2483': { abbr: 'ORE', name: 'Oregon Ducks', short: 'Oregon', color: '#00934B' },
-    '213': { abbr: 'PSU', name: 'Penn State Nittany Lions', short: 'Penn State', color: '#061440' },
-    '2509': { abbr: 'PUR', name: 'Purdue Boilermakers', short: 'Purdue', color: '#CEB888' },
-    '164': { abbr: 'RUTG', name: 'Rutgers Scarlet Knights', short: 'Rutgers', color: '#CE0E2D' },
-    '26': { abbr: 'UCLA', name: 'UCLA Bruins', short: 'UCLA', color: '#2774AE' },
-    '30': { abbr: 'USC', name: 'USC Trojans', short: 'USC', color: '#9D2235' },
-    '264': { abbr: 'WASH', name: 'Washington Huskies', short: 'Washington', color: '#33006F' },
-    '275': { abbr: 'WIS', name: 'Wisconsin Badgers', short: 'Wisconsin', color: '#A00000' },
-    // Atlantic Coast Conference (ACC)
-    '103': { abbr: 'BC', name: 'Boston College Eagles', short: 'Boston College', color: '#8C2232' },
-    '25': { abbr: 'CAL', name: 'California Golden Bears', short: 'California', color: '#041E42' },
-    '228': { abbr: 'CLEM', name: 'Clemson Tigers', short: 'Clemson', color: '#F56600' },
-    '150': { abbr: 'DUKE', name: 'Duke Blue Devils', short: 'Duke', color: '#00539B' },
-    '52': { abbr: 'FSU', name: 'Florida State Seminoles', short: 'Florida St', color: '#782F40' },
-    '59': { abbr: 'GT', name: 'Georgia Tech Yellow Jackets', short: 'Georgia Tech', color: '#B3A369' },
-    '97': { abbr: 'LOU', name: 'Louisville Cardinals', short: 'Louisville', color: '#C9001F' },
-    '2390': { abbr: 'MIA', name: 'Miami Hurricanes', short: 'Miami', color: '#F47423' },
-    '152': { abbr: 'NCSU', name: 'NC State Wolfpack', short: 'NC State', color: '#CC0000' },
-    '153': { abbr: 'UNC', name: 'North Carolina Tar Heels', short: 'North Carolina', color: '#7BAFD4' },
-    '221': { abbr: 'PITT', name: 'Pittsburgh Panthers', short: 'Pitt', color: '#003594' },
-    '2567': { abbr: 'SMU', name: 'SMU Mustangs', short: 'SMU', color: '#A80000' },
-    '24': { abbr: 'STAN', name: 'Stanford Cardinal', short: 'Stanford', color: '#8C1515' },
-    '183': { abbr: 'SYR', name: 'Syracuse Orange', short: 'Syracuse', color: '#000E54' },
-    '258': { abbr: 'UVA', name: 'Virginia Cavaliers', short: 'Virginia', color: '#232D4B' },
-    '259': { abbr: 'VT', name: 'Virginia Tech Hokies', short: 'Virginia Tech', color: '#6A2C3E' },
-    '154': { abbr: 'WAKE', name: 'Wake Forest Demon Deacons', short: 'Wake Forest', color: '#CEB888' },
-    // Big 12 Conference (Big 12)
-    '12': { abbr: 'ARIZ', name: 'Arizona Wildcats', short: 'Arizona', color: '#CC0033' },
-    '9': { abbr: 'ASU', name: 'Arizona State Sun Devils', short: 'Arizona St', color: '#FFC627' },
-    '252': { abbr: 'BYU', name: 'BYU Cougars', short: 'BYU', color: '#0047BA' },
-    '239': { abbr: 'BAY', name: 'Baylor Bears', short: 'Baylor', color: '#154734' },
-    '2132': { abbr: 'CIN', name: 'Cincinnati Bearcats', short: 'Cincinnati', color: '#E00122' },
-    '38': { abbr: 'COLO', name: 'Colorado Buffaloes', short: 'Colorado', color: '#CFB87C' },
-    '248': { abbr: 'HOU', name: 'Houston Cougars', short: 'Houston', color: '#C8102E' },
-    '66': { abbr: 'ISU', name: 'Iowa State Cyclones', short: 'Iowa State', color: '#AE192D' },
-    '2305': { abbr: 'KU', name: 'Kansas Jayhawks', short: 'Kansas', color: '#0051BA' },
-    '2306': { abbr: 'KSU', name: 'Kansas State Wildcats', short: 'Kansas St', color: '#330A57' },
-    '197': { abbr: 'OKST', name: 'Oklahoma State Cowboys', short: 'Oklahoma St', color: '#FE5C00' },
-    '2628': { abbr: 'TCU', name: 'TCU Horned Frogs', short: 'TCU', color: '#4D1979' },
-    '2641': { abbr: 'TTU', name: 'Texas Tech Red Raiders', short: 'Texas Tech', color: '#DA291C' },
-    '2116': { abbr: 'UCF', name: 'UCF Knights', short: 'UCF', color: '#B4A169' },
-    '254': { abbr: 'UTAH', name: 'Utah Utes', short: 'Utah', color: '#BE0000' },
-    '277': { abbr: 'WVU', name: 'West Virginia Mountaineers', short: 'West Virginia', color: '#EAAA00' },
-    // American Conference (American)
-    '349': { abbr: 'ARMY', name: 'Army Black Knights', short: 'Army', color: '#D3BC8D' },
-    '2429': { abbr: 'CLT', name: 'Charlotte 49ers', short: 'Charlotte', color: '#005035' },
-    '151': { abbr: 'ECU', name: 'East Carolina Pirates', short: 'East Carolina', color: '#582C83' },
-    '2226': { abbr: 'FAU', name: 'Florida Atlantic Owls', short: 'FAU', color: '#003366' },
-    '235': { abbr: 'MEM', name: 'Memphis Tigers', short: 'Memphis', color: '#004991' },
-    '2426': { abbr: 'NAVY', name: 'Navy Midshipmen', short: 'Navy', color: '#00225B' },
-    '249': { abbr: 'UNT', name: 'North Texas Mean Green', short: 'North Texas', color: '#068F33' },
-    '242': { abbr: 'RICE', name: 'Rice Owls', short: 'Rice', color: '#00205B' },
-    '58': { abbr: 'USF', name: 'South Florida Bulls', short: 'South Florida', color: '#006747' },
-    '218': { abbr: 'TEM', name: 'Temple Owls', short: 'Temple', color: '#A41E35' },
-    '2655': { abbr: 'TULN', name: 'Tulane Green Wave', short: 'Tulane', color: '#006747' },
-    '202': { abbr: 'TLSA', name: 'Tulsa Golden Hurricane', short: 'Tulsa', color: '#003595' },
-    '5': { abbr: 'UAB', name: 'UAB Blazers', short: 'UAB', color: '#1A5632' },
-    '2636': { abbr: 'UTSA', name: 'UTSA Roadrunners', short: 'UTSA', color: '#0C2340' },
-    // Mountain West Conference (Mountain West)
-    '2005': { abbr: 'AF', name: 'Air Force Falcons', short: 'Air Force', color: '#003594' },
-    '68': { abbr: 'BOIS', name: 'Boise State Broncos', short: 'Boise St', color: '#0033A0' },
-    '36': { abbr: 'CSU', name: 'Colorado State Rams', short: 'Colorado St', color: '#004C23' },
-    '278': { abbr: 'FRES', name: 'Fresno State Bulldogs', short: 'Fresno St', color: '#B1102B' },
-    '62': { abbr: 'HAW', name: 'Hawai\'i Rainbow Warriors', short: 'Hawai\'i', color: '#005737' },
-    '2440': { abbr: 'NEV', name: 'Nevada Wolf Pack', short: 'Nevada', color: '#041E42' },
-    '167': { abbr: 'UNM', name: 'New Mexico Lobos', short: 'New Mexico', color: '#BA0C2F' },
-    '21': { abbr: 'SDSU', name: 'San Diego State Aztecs', short: 'San Diego St', color: '#A6192E' },
-    '23': { abbr: 'SJSU', name: 'San José State Spartans', short: 'San José St', color: '#0038A8' },
-    '2439': { abbr: 'UNLV', name: 'UNLV Rebels', short: 'UNLV', color: '#CF0A2C' },
-    '328': { abbr: 'USU', name: 'Utah State Aggies', short: 'Utah State', color: '#0F2439' },
-    '2751': { abbr: 'WYO', name: 'Wyoming Cowboys', short: 'Wyoming', color: '#492F24' },
-    // Conference USA (Conference USA)
-    '48': { abbr: 'DEL', name: 'Delaware Blue Hens', short: 'Delaware', color: '#00539F' },
-    '2229': { abbr: 'FIU', name: 'Florida International Panthers', short: 'FIU', color: '#091F3F' },
-    '55': { abbr: 'JXST', name: 'Jacksonville State Gamecocks', short: 'Jax State', color: '#CC0000' },
-    '338': { abbr: 'KENN', name: 'Kennesaw State Owls', short: 'Kennesaw St', color: '#FDBB30' },
-    '2335': { abbr: 'LIB', name: 'Liberty Flames', short: 'Liberty', color: '#0A254E' },
-    '2348': { abbr: 'LT', name: 'Louisiana Tech Bulldogs', short: 'Louisiana Tech', color: '#003087' },
-    '2393': { abbr: 'MTSU', name: 'Middle Tennessee Blue Raiders', short: 'MTSU', color: '#036EB7' },
-    '2623': { abbr: 'MOST', name: 'Missouri State Bears', short: 'Missouri St', color: '#5E0009' },
-    '166': { abbr: 'NMSU', name: 'New Mexico State Aggies', short: 'New Mexico St', color: '#7E141B' },
-    '2534': { abbr: 'SHSU', name: 'Sam Houston Bearkats', short: 'Sam Houston', color: '#F56423' },
-    '2638': { abbr: 'UTEP', name: 'UTEP Miners', short: 'UTEP', color: '#FF8200' },
-    '98': { abbr: 'WKU', name: 'Western Kentucky Hilltoppers', short: 'Western KY', color: '#E13A3E' },
-    // Mid-American Conference (MAC)
-    '2006': { abbr: 'AKR', name: 'Akron Zips', short: 'Akron', color: '#041E42' },
-    '2050': { abbr: 'BALL', name: 'Ball State Cardinals', short: 'Ball State', color: '#BA0C2F' },
-    '189': { abbr: 'BGSU', name: 'Bowling Green Falcons', short: 'Bowling Green', color: '#FD5000' },
-    '2084': { abbr: 'BUF', name: 'Buffalo Bulls', short: 'Buffalo', color: '#005BBB' },
-    '2117': { abbr: 'CMU', name: 'Central Michigan Chippewas', short: 'C Michigan', color: '#4C0027' },
-    '2199': { abbr: 'EMU', name: 'Eastern Michigan Eagles', short: 'E Michigan', color: '#006938' },
-    '2309': { abbr: 'KENT', name: 'Kent State Golden Flashes', short: 'Kent State', color: '#002664' },
-    '193': { abbr: 'M-OH', name: 'Miami (OH) RedHawks', short: 'Miami OH', color: '#C41230' },
-    '2459': { abbr: 'NIU', name: 'Northern Illinois Huskies', short: 'N Illinois', color: '#C8102E' },
-    '195': { abbr: 'OHIO', name: 'Ohio Bobcats', short: 'Ohio', color: '#154734' },
-    '2649': { abbr: 'TOL', name: 'Toledo Rockets', short: 'Toledo', color: '#0B2240' },
-    '113': { abbr: 'MASS', name: 'Massachusetts Minutemen', short: 'UMass', color: '#881C1C' },
-    '2711': { abbr: 'WMU', name: 'Western Michigan Broncos', short: 'W Michigan', color: '#532E1F' },
-    // Sun Belt Conference (Sun Belt)
-    '2026': { abbr: 'APP', name: 'App State Mountaineers', short: 'App State', color: '#FFCD00' },
-    '2032': { abbr: 'ARST', name: 'Arkansas State Red Wolves', short: 'Arkansas St', color: '#CC092F' },
-    '324': { abbr: 'CCU', name: 'Coastal Carolina Chanticleers', short: 'Coastal', color: '#006F71' },
-    '290': { abbr: 'GASO', name: 'Georgia Southern Eagles', short: 'GA Southern', color: '#041E42' },
-    '2247': { abbr: 'GAST', name: 'Georgia State Panthers', short: 'Georgia St', color: '#0039A6' },
-    '256': { abbr: 'JMU', name: 'James Madison Dukes', short: 'James Madison', color: '#450084' },
-    '309': { abbr: 'UL', name: 'Louisiana Ragin\' Cajuns', short: 'Louisiana', color: '#CE181E' },
-    '276': { abbr: 'MRSH', name: 'Marshall Thundering Herd', short: 'Marshall', color: '#00B140' },
-    '295': { abbr: 'ODU', name: 'Old Dominion Monarchs', short: 'Old Dominion', color: '#003768' },
-    '6': { abbr: 'USA', name: 'South Alabama Jaguars', short: 'South Alabama', color: '#00205B' },
-    '2572': { abbr: 'USM', name: 'Southern Miss Golden Eagles', short: 'Southern Miss', color: '#FFC72C' },
-    '326': { abbr: 'TXST', name: 'Texas State Bobcats', short: 'Texas St', color: '#501214' },
-    '2653': { abbr: 'TROY', name: 'Troy Trojans', short: 'Troy', color: '#862633' },
-    '2433': { abbr: 'ULM', name: 'UL Monroe Warhawks', short: 'UL Monroe', color: '#840029' },
-    // Pac-12 Conference (Pac-12)
-    '204': { abbr: 'ORST', name: 'Oregon State Beavers', short: 'Oregon St', color: '#DC4405' },
-    '265': { abbr: 'WSU', name: 'Washington State Cougars', short: 'Washington St', color: '#A60F2D' },
-    // FBS Independents (Independents)
-    '87': { abbr: 'ND', name: 'Notre Dame Fighting Irish', short: 'Notre Dame', color: '#062340' },
-    '41': { abbr: 'CONN', name: 'UConn Huskies', short: 'UConn', color: '#0C2340' },
-};
-
-const teamAbbr  = id => TEAMS[id]?.abbr  || '???';
-const teamColor = id => TEAMS[id]?.color || '#FFFFFF';
-const teamName  = id => TEAMS[id]?.short || teamAbbr(id);
+// Team abbreviation, short name, and primary color are no longer a
+// maintained lookup table here — they're read directly off each event's own
+// team objects in parseEvent() below, straight from ESPN's live scoreboard
+// response. The property inspector's team picker (property-inspector.html)
+// separately fetches ESPN's full FBS standings live on load for its
+// searchable list of all 136 teams (which don't all appear on any single
+// scoreboard poll), falling back to a bundled static list only if that
+// fetch fails.
 
 // ── "Hold the final" cutoff ─────────────────────────────────────────────────
 // A finished game keeps winning over an upcoming preview until the next
@@ -920,7 +777,7 @@ function parseGames(data, teamId, now) {
         }
 
         // No game is currently live — check whether this team's most recent
-        // final is still inside its hold window (before the next Tuesday
+        // final is still inside its hold window (before the next Monday
         // 3am ET that follows it) and, if so, prefer it over an upcoming
         // preview regardless of the rank ordering above.
         if (bestRank !== 3) {
@@ -952,13 +809,27 @@ function parseEvent(e, now) {
     const away = comp.competitors.find(c => c.homeAway === 'away');
     const home = comp.competitors.find(c => c.homeAway === 'home');
     const awayId = away?.team?.id, homeId = home?.team?.id;
-    const awayAbbr = teamAbbr(awayId), homeAbbr = teamAbbr(homeId);
-    const matchup  = awayAbbr + ' @ ' + homeAbbr;
+
+    // Abbreviation/name/color come straight off this event's own team objects
+    // rather than a lookup table — ESPN's scoreboard response already
+    // includes them per team on every poll, so this is inherently live data
+    // (it updates the moment ESPN's own records do, e.g. a mid-season
+    // rebrand) with no extra API call or maintained team list required.
+    const awayAbbr  = away?.team?.abbreviation || '???';
+    const homeAbbr  = home?.team?.abbreviation || '???';
+    const awayName  = away?.team?.shortDisplayName || awayAbbr;
+    const homeName  = home?.team?.shortDisplayName || homeAbbr;
+    const awayColor = away?.team?.color ? '#' + away.team.color : '#FFFFFF';
+    const homeColor = home?.team?.color ? '#' + home.team.color : '#FFFFFF';
+    const matchup   = awayAbbr + ' @ ' + homeAbbr;
 
     const gcLink = (e.links || []).find(l => (l.text || '').toLowerCase() === 'gamecast') || (e.links || [])[0];
     const link   = gcLink?.href || ('https://www.espn.com/college-football/game/_/gameId/' + e.id);
 
-    const base = { matchup, awayId, homeId, awayAbbr, homeAbbr, eventId: e.id, link };
+    const base = {
+        matchup, awayId, homeId, awayAbbr, homeAbbr, awayName, homeName, awayColor, homeColor,
+        eventId: e.id, link
+    };
 
     if (name.includes('POSTPONED') || name.includes('CANCEL')) return { ...base, state: 'ppd' };
     if (/DELAY/.test(name))                                    return { ...base, state: 'delay' };
@@ -1026,9 +897,9 @@ function escXml(s) {
 // of it.
 // Returns { fill, opacity } instead of a single rgba(...) string on purpose —
 // this device's SVG renderer doesn't reliably implement the full SVG/CSS
-// spec (see the tspan gap note above), so a plain hex `fill` plus a separate
-// numeric `fill-opacity` attribute is the safer bet than relying on
-// functional color notation like rgba() being parsed.
+// spec (see the tspan gap note in makeImage below), so a plain hex `fill`
+// plus a separate numeric `fill-opacity` attribute is the safer bet than
+// relying on functional color notation like rgba() being parsed.
 function resolveBgColor(cfg) {
     if (!cfg || !cfg.bgColor) return { fill: 'black', opacity: 1 };
     const hex = String(cfg.bgColor).replace('#', '');

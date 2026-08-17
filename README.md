@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.10-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.13-green)
 
 ---
 
@@ -25,6 +25,16 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 ---
 
 ## Recent Updates
+
+**v1.0.13.0**
+- Code cleanup pass: removed an unused variable in the settings panel and corrected several stale code comments left over from earlier changes (including one that still said the "hold the final" cutoff was Tuesday instead of Monday). No behavior changes.
+
+**v1.0.12.0**
+- The search box in settings no longer shows the tracked team's name when you reopen a configured button — it stays empty (ready for a new search) since the "Tracking:" banner below it already shows the current team, and the two were just duplicating each other.
+- Fixed the Conference/Team dropdowns sometimes not reflecting the tracked team when reopening a configured button's settings — they could end up synced against the temporary fallback list before ESPN's live list finished loading. They now re-sync once the live list is in.
+
+**v1.0.11.0**
+- Team data is now pulled live from ESPN instead of a bundled static list. The settings panel's search/dropdown fetches ESPN's full FBS standings on load for the current list of all 136 teams and conferences (falling back to a bundled list only if that fetch fails), and each button's abbreviation, name, and color now come directly from that game's own live scoreboard data rather than a separate lookup table.
 
 **v1.0.10.0**
 - Narrowed the schedule look-back from 10 days to 7 — a new CFB week starts Monday 3am ET, so there's nothing useful further back than the prior week's final, which the hold-final rule already stops showing at that same boundary anyway. Look-ahead stays at 10 days.
@@ -137,9 +147,11 @@ Shown before the season starts or after it ends. Also opens that team's schedule
 
 ## How It Works
 
-The plugin polls [ESPN's public college football scoreboard API](https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard) once every 30 seconds per button. No API key or account is required. The plugin is fully self-contained — it uses only Node.js built-in modules and requires no external dependencies.
+The plugin polls [ESPN's public college football scoreboard API](https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard) once every 30 seconds per button (down to every 15 seconds during the two-minute timeout of the 2nd and 4th quarters). No API key or account is required. The plugin is fully self-contained — it uses only Node.js built-in modules and requires no external dependencies. Each team's abbreviation, name, and color are read directly from that response, so there's no separate team database to keep in sync with ESPN.
 
-Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 15-day window (one week back, one week ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final — so the button holds onto a result until the next game appears on the schedule.
+Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 17-day window (seven days back, ten days ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final — so the button holds onto a result until the next game appears on the schedule (through the following Monday, 3:00 AM ET, if it finished before then).
+
+The settings panel's team picker works the same way — it fetches ESPN's full FBS standings once when opened to build its searchable list of all 136 teams, since a single scoreboard poll only ever contains teams that have games in the current window. If that fetch fails, the picker falls back to a bundled list so it's never empty.
 
 ---
 

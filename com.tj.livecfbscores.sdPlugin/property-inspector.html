@@ -288,7 +288,12 @@
 
 <script>
     // ── Team data ─────────────────────────────────────────────────────────────
-    var TEAMS = [
+    // The live list (fetched below from ESPN on load) is what's actually used.
+    // FALLBACK_TEAMS only kicks in if that fetch fails (offline, ESPN down,
+    // etc.) so the picker never shows up empty — just silently stops being
+    // "live" until ESPN answers again. Kept in the same shape ESPN's own data
+    // takes so both can flow through the exact same rendering code.
+    var FALLBACK_TEAMS = [
         // SEC
         { value: "333",  abbr: "ALA",  name: "Alabama Crimson Tide",          conf: "SEC" },
         { value: "8",    abbr: "ARK",  name: "Arkansas Razorbacks",            conf: "SEC" },
@@ -438,10 +443,70 @@
         { value: "41",   abbr: "CONN", name: "UConn Huskies",                  conf: "Ind" },
     ];
 
+    // TEAMS starts out as the fallback so the picker is usable immediately;
+    // fetchLiveTeams() (below) swaps it for the live ESPN list once that
+    // fetch resolves, then re-renders whatever's currently on screen.
+    var TEAMS = FALLBACK_TEAMS;
+
+    // ── Live team list ───────────────────────────────────────────────────────
+    // ESPN's conference names (standings endpoint) mapped to the short codes
+    // already used by the #confSelect dropdown's option values.
+    var CONF_CODE = {
+        'Southeastern Conference':    'SEC',
+        'Big Ten Conference':         'Big Ten',
+        'Atlantic Coast Conference':  'ACC',
+        'Big 12 Conference':          'Big 12',
+        'American Conference':       'AAC',
+        'Mountain West Conference':   'MWC',
+        'Conference USA':             'CUSA',
+        'Mid-American Conference':    'MAC',
+        'Sun Belt Conference':        'Sun Belt',
+        'Pac-12 Conference':          'Pac-12',
+        'FBS Independents':           'Ind'
+    };
+
+    // Walks the standings tree (FBS -> 11 conferences -> teams, except Sun
+    // Belt which nests one level deeper into East/West divisions) and flattens
+    // it into the same { value, abbr, name, conf } shape FALLBACK_TEAMS uses.
+    function flattenConference(node, confCode, out) {
+        if (node.standings && node.standings.entries) {
+            node.standings.entries.forEach(function(entry) {
+                var t = entry.team;
+                out.push({ value: String(t.id), abbr: t.abbreviation, name: t.displayName, conf: confCode });
+            });
+        } else if (node.children) {
+            node.children.forEach(function(child) { flattenConference(child, confCode, out); });
+        }
+    }
+
+    function fetchLiveTeams() {
+        var url = 'https://site.api.espn.com/apis/v2/sports/football/college-football/standings?group=80';
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+            .then(function(data) {
+                var out = [];
+                (data.children || []).forEach(function(conf) {
+                    var code = CONF_CODE[conf.name] || conf.name;
+                    flattenConference(conf, code, out);
+                });
+                if (!out.length) throw new Error('empty team list');
+                TEAMS = out;
+                console.log('Loaded ' + TEAMS.length + ' teams live from ESPN');
+                // Settings usually arrive over the WebSocket before this
+                // fetch resolves, so re-sync the dropdowns against the now-
+                // current (live) list rather than leaving them as whatever
+                // the earlier fallback-list sync produced.
+                syncTeamSelectionUI();
+                showAutocomplete();
+            })
+            .catch(function(e) {
+                console.log('Live team list fetch failed, staying on fallback list:', e.message);
+            });
+    }
+
     // ── State ─────────────────────────────────────────────────────────────────
     var websocket     = null;
     var uuid          = null;
-    var actionContext = null;
     var actionUUID    = null;
     var savedTeamId   = null;
 
@@ -542,23 +607,16 @@
 
     // ── Shared selection handler ──────────────────────────────────────────────
     function selectTeam(value, abbr, name) {
-        savedTeamId = value;
-
-        // Update search box display
-        searchBox.value = name;
+        // Clear the search box back to its placeholder rather than leaving
+        // the picked name sitting in it — the "Tracking:" banner below
+        // already shows the current team, so leaving the search box filled
+        // just duplicates it (and reads oddly as a leftover search query).
+        searchBox.value = '';
         hideAutocomplete();
 
-        // Sync conference dropdown + team dropdown to match
-        var team = TEAMS.find(function(t) { return t.value === value; });
-        if (team) {
-            document.getElementById('confSelect').value = team.conf;
-            renderTeamSelect();
-            document.getElementById('teamSelect').value = value;
-        }
-
-        showSelectedTeamBanner(name);
         currentSettings.teamId   = value;
         currentSettings.teamAbbr = abbr;
+        syncTeamSelectionUI(); // syncs conference/team dropdowns + banner from currentSettings.teamId
         saveSettings();
     }
 
@@ -573,6 +631,28 @@
         }
     }
 
+    // Syncs the Conference/Team dropdowns and the "Tracking:" banner to
+    // whatever team currentSettings.teamId currently points at, against
+    // whatever team list (live or fallback) is loaded right now. Pulled out
+    // as its own function — rather than only running once inside
+    // applySettings() — so it can also be re-run after fetchLiveTeams()
+    // resolves. Settings almost always arrive over the (near-instant,
+    // same-machine) WebSocket before the ESPN fetch finishes, so without
+    // this the dropdowns would sync against the temporary fallback list and
+    // then never get refreshed once the live list swaps in — reopening a
+    // configured button would show the right team in the "Tracking:" banner
+    // but "All Conferences" / "— Select a team —" in the dropdowns above it.
+    function syncTeamSelectionUI() {
+        if (!currentSettings.teamId) { showSelectedTeamBanner(''); return; }
+        var team = TEAMS.find(function(t) { return t.value === currentSettings.teamId; });
+        if (!team) return; // not in this list (yet) — leave dropdowns as-is, banner still reflects last known name
+        savedTeamId = team.value;
+        document.getElementById('confSelect').value = team.conf;
+        renderTeamSelect();
+        document.getElementById('teamSelect').value = team.value;
+        showSelectedTeamBanner(team.name);
+    }
+
     // ── Settings ──────────────────────────────────────────────────────────────
     function applySettings(settings) {
         if (!settings) return;
@@ -581,17 +661,11 @@
         currentSettings.bgColor   = settings.bgColor    || null;
         currentSettings.bgOpacity = settings.bgOpacity != null ? settings.bgOpacity : 100;
 
-        if (settings.teamId) {
-            savedTeamId = settings.teamId;
-            var team = TEAMS.find(function(t) { return t.value === settings.teamId; });
-            if (team) {
-                searchBox.value = team.name;
-                document.getElementById('confSelect').value = team.conf;
-                renderTeamSelect();
-                document.getElementById('teamSelect').value = team.value;
-                showSelectedTeamBanner(team.name);
-            }
-        }
+        // Deliberately not touching searchBox.value here — see the comment
+        // in selectTeam(). Reopening settings on an already-tracked button
+        // should show an empty search box, not the team name sitting in it
+        // as if it were a live query.
+        syncTeamSelectionUI();
 
         var bgEnabled  = document.getElementById('bgEnabled');
         var bgControls = document.getElementById('bgControls');
@@ -657,7 +731,7 @@
         var abbr = sel.options[sel.selectedIndex].getAttribute('data-abbr');
         var name = sel.options[sel.selectedIndex].text;
         savedTeamId     = sel.value;
-        searchBox.value = name;
+        searchBox.value = ''; // see selectTeam() comment — banner covers this now
         showSelectedTeamBanner(name);
         currentSettings.teamId   = sel.value;
         currentSettings.teamAbbr = abbr;
@@ -669,8 +743,7 @@
         uuid = propertyInspectorUUID;
         try {
             var parsed = JSON.parse(actionInfo);
-            actionContext = parsed.context;
-            actionUUID    = parsed.action;
+            actionUUID = parsed.action;
         } catch(e) {}
 
         websocket = new WebSocket('ws://127.0.0.1:' + port);
@@ -690,8 +763,10 @@
         };
     }
 
-    // Initial render
+    // Initial render (fallback list, so the picker isn't empty while the live
+    // fetch below is in flight), then swap in the live ESPN team list.
     renderTeamSelect();
+    fetchLiveTeams();
 </script>
 
 <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #444; text-align: center; color: #666; font-size: 10px; line-height: 1.5;">
