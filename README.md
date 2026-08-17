@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.8-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.10-green)
 
 ---
 
@@ -19,11 +19,18 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 - **Off-week shortcut** — if your team has no game scheduled, pressing the button opens that team's full schedule on ESPN instead
 - **No-flicker updates** — buttons only redraw when the display actually changes
 - **Multi-button support** — add as many team buttons as you want, each refreshes independently
+- **Custom background color** — set a per-button background color and opacity in the settings panel, handy for telling teams apart at a glance across multiple buttons
 - **All 136 FBS teams** across all 11 conferences (SEC, Big Ten, ACC, Big 12, American, Mountain West, Conference USA, MAC, Sun Belt, Pac-12, and Independents)
 
 ---
 
 ## Recent Updates
+
+**v1.0.10.0**
+- Narrowed the schedule look-back from 10 days to 7 — a new CFB week starts Monday 3am ET, so there's nothing useful further back than the prior week's final, which the hold-final rule already stops showing at that same boundary anyway. Look-ahead stays at 10 days.
+
+**v1.0.9.0**
+- Added a custom background color option in the settings panel: toggle it on, pick a color, and adjust its opacity. Useful for telling teams apart at a glance when you've got several buttons configured. Off by default — buttons keep the original plain black background unless you turn it on. Applies to the normal score display; the score-flash and end-of-game fireworks animations still use their own colors on top of it.
 
 **v1.0.8.0**
 - Moved the "hold the final" cutoff from Tuesday to Monday at 3:00 AM ET — so a final score now holds through the whole weekend and Monday morning, instead of getting bumped to next week's preview before you've even sat down at your desk

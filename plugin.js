@@ -343,6 +343,7 @@ function handleEvent({ event, context, payload }) {
 
         case 'sendToPlugin':
             if (payload && payload.settings) {
+                log('sendToPlugin — settings:', JSON.stringify(payload.settings));
                 instances.set(context, payload.settings);
                 lastRender.delete(context);
                 refreshButton(context);
@@ -390,7 +391,7 @@ async function refreshButton(context) {
     }
 
     refreshing.add(context);
-    log('Refreshing', cfg.teamAbbr || cfg.teamId);
+    log('Refreshing', cfg.teamAbbr || cfg.teamId, '— bg:', JSON.stringify(resolveBgColor(cfg)));
     try {
         const game = await fetchTeamGame(cfg.teamId);
         currentGame.set(context, game || null);
@@ -453,7 +454,7 @@ async function refreshButton(context) {
                                      : teamColor(game.homeId);
                     log('Score change — flashing', color);
                     refreshing.delete(context);
-                    flashButton(context, color, lines, spacing).catch(e => log('flashButton error:', e.message));
+                    flashButton(context, color, lines, spacing, resolveBgColor(cfg)).catch(e => log('flashButton error:', e.message));
                     return;
                 }
             }
@@ -461,10 +462,10 @@ async function refreshButton(context) {
             prevScores.delete(context);
         }
 
-        setButton(context, lines, spacing);
+        setButton(context, lines, spacing, resolveBgColor(cfg));
     } catch (err) {
         log('Fetch error:', err.message);
-        setButton(context, [cfg.teamAbbr || 'CFB', 'Err']);
+        setButton(context, [cfg.teamAbbr || 'CFB', 'Err'], undefined, resolveBgColor(cfg));
     } finally {
         refreshing.delete(context);
     }
@@ -823,11 +824,15 @@ function fetchTeamGame(teamId) {
             String(d.getDate()).padStart(2, '0');
 
         // College football plays roughly one game per team per week, not daily —
-        // pull a 21-day window (ten days back, ten days ahead) and pick the most
-        // relevant game for this team out of it. This comfortably covers a bye
-        // week (real-world max gap observed: ~14 days) with margin to spare,
-        // while staying well under ESPN's ~200-event default response cap.
-        const start = new Date(now); start.setDate(start.getDate() - 10);
+        // pull a 17-day window (seven days back, ten days ahead) and pick the
+        // most relevant game for this team out of it. Only a week's worth of
+        // look-back is needed: a new CFB week starts Monday 3am ET, and by then
+        // there's nothing useful further back than the prior week's final (which
+        // the hold-final cutoff already stops showing at that same boundary).
+        // Look-ahead stays at ten days to comfortably cover a bye week
+        // (real-world max gap observed: ~14 days) with margin to spare, while
+        // staying well under ESPN's ~200-event default response cap.
+        const start = new Date(now); start.setDate(start.getDate() - 7);
         const end   = new Date(now); end.setDate(end.getDate() + 10);
 
         const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard' +
@@ -889,7 +894,7 @@ function parseGames(data, teamId, now) {
         });
         if (!matches.length) {
             // Other teams have games in this window but this one doesn't — under
-            // normal weekly cadence that can't happen (the 21-day rolling window
+            // normal weekly cadence that can't happen (the 17-day rolling window
             // comfortably spans a ~7-day gap between games), so an empty `matches`
             // alongside a non-empty `allEvents` specifically means this team has
             // a bye. (Known limitation: a team done for the year during bowl
@@ -1012,8 +1017,29 @@ function escXml(s) {
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
 }
 
+// Turns a user-chosen hex color + opacity (0-100) from the property inspector
+// into a fill/opacity pair the SVG <rect> can use directly. Falls back to
+// plain black for anyone who hasn't set a custom background — same look as
+// before this feature existed. This is deliberately only applied to the
+// steady-state button (pre-game/live/final/err) — the score-flash and
+// end-of-game fireworks effects keep using their own dynamic colors on top
+// of it.
+// Returns { fill, opacity } instead of a single rgba(...) string on purpose —
+// this device's SVG renderer doesn't reliably implement the full SVG/CSS
+// spec (see the tspan gap note above), so a plain hex `fill` plus a separate
+// numeric `fill-opacity` attribute is the safer bet than relying on
+// functional color notation like rgba() being parsed.
+function resolveBgColor(cfg) {
+    if (!cfg || !cfg.bgColor) return { fill: 'black', opacity: 1 };
+    const hex = String(cfg.bgColor).replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return { fill: 'black', opacity: 1 };
+    const opacityPct = cfg.bgOpacity != null ? Number(cfg.bgOpacity) : 100;
+    const opacity     = Math.max(0, Math.min(100, isNaN(opacityPct) ? 100 : opacityPct)) / 100;
+    return { fill: '#' + hex, opacity };
+}
+
 // Accepts an array of strings (auto-sized) or { text, fs, color } objects (explicit size).
-function makeImage(lines, lineSpacing = 1.4, bgColor = 'black') {
+function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
     const W = 72, H = 72, PAD = 4, MAX_W = W - PAD * 2;
 
     const items = lines.map(l => {
@@ -1069,7 +1095,7 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black') {
 
     const svg =
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="144" height="144" overflow="hidden">` +
-        `<rect width="${W}" height="${H}" fill="${bgColor}"/>` +
+        `<rect width="${W}" height="${H}" fill="${bgColor}" fill-opacity="${bgOpacity}"/>` +
         rows + `</svg>`;
 
     return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
@@ -1137,28 +1163,34 @@ async function playFireworks(context, winnerName, winnerColor) {
     }
 }
 
-function setButton(context, lines, lineSpacing, bgColor) {
-    const key = JSON.stringify(lines);
-    if (!bgColor && lastRender.get(context) === key) return; // skip if unchanged
-    if (!bgColor) lastRender.set(context, key);
-    ws.send(JSON.stringify({ event: 'setImage', context, payload: { image: makeImage(lines, lineSpacing, bgColor), target: 0 } }));
+// bgColor may be a plain CSS color string (flash colors, 'black') or a
+// { fill, opacity } object (resolveBgColor's output) — normalized to the
+// latter here so makeImage always gets a fill string + numeric opacity.
+function setButton(context, lines, lineSpacing, bgColor, force) {
+    const bg = (bgColor && typeof bgColor === 'object') ? bgColor : { fill: bgColor || 'black', opacity: 1 };
+    const key = JSON.stringify({ lines, bg });
+    if (!force) {
+        if (lastRender.get(context) === key) return; // skip if unchanged
+        lastRender.set(context, key);
+    }
+    ws.send(JSON.stringify({ event: 'setImage', context, payload: { image: makeImage(lines, lineSpacing, bg.fill, bg.opacity), target: 0 } }));
 }
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-async function flashButton(context, color, lines, spacing) {
+async function flashButton(context, color, lines, spacing, restColor = 'black') {
     if (flashing.has(context)) return;
     flashing.add(context);
     log('→ flash', color);
     try {
         for (let i = 0; i < 4; i++) {
-            setButton(context, lines, spacing, color);
+            setButton(context, lines, spacing, color, true);
             await sleep(200);
-            setButton(context, lines, spacing, 'black');
+            setButton(context, lines, spacing, restColor, true);
             await sleep(200);
         }
     } finally {
         flashing.delete(context);
-        setButton(context, lines, spacing, 'black');
+        setButton(context, lines, spacing, restColor, true);
     }
 }
