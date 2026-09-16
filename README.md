@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.13-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.14-green)
 
 ---
 
@@ -25,6 +25,9 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 ---
 
 ## Recent Updates
+
+**v1.0.14.0**
+- Fixed every button showing `Err`: ESPN changed its scoreboard API to reject the multi-day `dates=<range>` query this plugin used to pull a team's window in one request — even a single-day range now gets a flat HTTP 400. Rebuilt the same coverage (last week's final, this week, next week) from up to three requests scoped to `week` + `seasontype` instead, the one query shape ESPN still accepts, merged into one event list and cached for 20 seconds so multiple buttons share the same fetch instead of multiplying requests.
 
 **v1.0.13.0**
 - Code cleanup pass: removed an unused variable in the settings panel and corrected several stale code comments left over from earlier changes (including one that still said the "hold the final" cutoff was Tuesday instead of Monday). No behavior changes.

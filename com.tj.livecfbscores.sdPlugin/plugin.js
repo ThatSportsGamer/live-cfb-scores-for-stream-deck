@@ -664,49 +664,21 @@ function nextMonday3amAfter(fromMs) {
 }
 
 // ── ESPN API ──────────────────────────────────────────────────────────────────
-function fetchTeamGame(teamId) {
-    // hasOwnProperty (not just truthiness) so a `null` entry — used to force the
-    // "No Game" state — is honored instead of falling through to the real API.
-    if (Object.prototype.hasOwnProperty.call(DEBUG_FAKE_GAMES, teamId)) {
-        return Promise.resolve(DEBUG_FAKE_GAMES[teamId]);
-    }
+// ESPN's edge (Akamai) started rejecting requests that don't look like a real
+// browser — a bare custom User-Agent with no Accept/Accept-Encoding was
+// getting a 403 "Access Denied" HTML page back instead of JSON. A realistic
+// browser header set (including Accept-Encoding, which the response is then
+// actually compressed with) is what gets a real 200.
+const ESPN_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Encoding': 'gzip, deflate, br',
+};
 
+// GET-and-decompress-and-parse helper for the scoreboard fetches below.
+function fetchJson(url) {
     return new Promise((resolve, reject) => {
-        const now = DEBUG_ANCHOR_DATE ? new Date(DEBUG_ANCHOR_DATE) : new Date();
-        // Don't roll to the next day's slate until 2am — covers late-running games
-        if (!DEBUG_ANCHOR_DATE && now.getHours() < 2) now.setDate(now.getDate() - 1);
-
-        const fmt = d => d.getFullYear() +
-            String(d.getMonth() + 1).padStart(2, '0') +
-            String(d.getDate()).padStart(2, '0');
-
-        // College football plays roughly one game per team per week, not daily —
-        // pull a 17-day window (seven days back, ten days ahead) and pick the
-        // most relevant game for this team out of it. Only a week's worth of
-        // look-back is needed: a new CFB week starts Monday 3am ET, and by then
-        // there's nothing useful further back than the prior week's final (which
-        // the hold-final cutoff already stops showing at that same boundary).
-        // Look-ahead stays at ten days to comfortably cover a bye week
-        // (real-world max gap observed: ~14 days) with margin to spare, while
-        // staying well under ESPN's ~200-event default response cap.
-        const start = new Date(now); start.setDate(start.getDate() - 7);
-        const end   = new Date(now); end.setDate(end.getDate() + 10);
-
-        const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard' +
-            '?dates=' + fmt(start) + '-' + fmt(end) + '&groups=80';
-
-        // ESPN's edge (Akamai) started rejecting requests that don't look like a
-        // real browser — a bare custom User-Agent with no Accept/Accept-Encoding
-        // was getting a 403 "Access Denied" HTML page back instead of JSON. A
-        // realistic browser header set (including Accept-Encoding, which the
-        // response is then actually compressed with) is what gets a real 200.
-        const reqHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Encoding': 'gzip, deflate, br',
-        };
-
-        const req = https.get(url, { headers: reqHeaders }, res => {
+        const req = https.get(url, { headers: ESPN_HEADERS }, res => {
             if (res.statusCode !== 200) {
                 res.resume(); // drain so the socket can be reused/closed cleanly
                 reject(new Error('HTTP ' + res.statusCode));
@@ -722,7 +694,7 @@ function fetchTeamGame(teamId) {
                     if (enc === 'gzip')        buf = zlib.gunzipSync(buf);
                     else if (enc === 'br')     buf = zlib.brotliDecompressSync(buf);
                     else if (enc === 'deflate') buf = zlib.inflateSync(buf);
-                    resolve(parseGames(JSON.parse(buf.toString('utf8')), teamId, now));
+                    resolve(JSON.parse(buf.toString('utf8')));
                 } catch (e) { reject(e); }
             });
         });
@@ -730,6 +702,70 @@ function fetchTeamGame(teamId) {
         req.on('error', reject);
         req.setTimeout(15_000, () => { req.destroy(); reject(new Error('Request timed out')); });
     });
+}
+
+// ── Shared week-window cache ────────────────────────────────────────────────
+// ESPN's `dates=<range>` scoreboard query — previously how this plugin pulled
+// a 17-day window (seven days back, ten days ahead) in one request — started
+// returning a flat HTTP 400 for ANY multi-day range (even a single explicit
+// one-day range), which is what showed up on every button as `Err`. Only a
+// bare request (ESPN's own notion of "the current week") or a request scoped
+// to `week` + `seasontype` still works, so that window is rebuilt from up to
+// three requests instead of one: this week, last week, and next week — each
+// still scoped to `groups=80` so postseason/lower-division games don't leak
+// in. Those three are merged into a single event list and cached briefly —
+// shared across every button's refresh — so several configured buttons don't
+// triple (or multiply further) the request volume against ESPN's API.
+let weekWindowCache     = null;
+let weekWindowCacheTime = 0;
+const WEEK_WINDOW_TTL_MS = 20_000;
+const SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80';
+
+async function fetchWeekWindow() {
+    if (weekWindowCache && (Date.now() - weekWindowCacheTime) < WEEK_WINDOW_TTL_MS) {
+        return weekWindowCache;
+    }
+
+    const current   = await fetchJson(SCOREBOARD_URL);
+    const allEvents = Array.isArray(current.events) ? current.events.slice() : [];
+
+    const weekNum    = current.week && current.week.number;
+    const seasonType = current.leagues && current.leagues[0] && current.leagues[0].season &&
+                        current.leagues[0].season.type && current.leagues[0].season.type.type;
+
+    if (weekNum != null && seasonType != null) {
+        // Skip week 0 — there is no "week before week 1" to ask ESPN for.
+        const neighborWeeks = weekNum > 1 ? [weekNum - 1, weekNum + 1] : [weekNum + 1];
+        const results = await Promise.allSettled(
+            neighborWeeks.map(w => fetchJson(`${SCOREBOARD_URL}&week=${w}&seasontype=${seasonType}`))
+        );
+        for (const r of results) {
+            if (r.status === 'fulfilled' && Array.isArray(r.value.events)) {
+                allEvents.push(...r.value.events);
+            } else if (r.status === 'rejected') {
+                log('Week window neighbor fetch failed:', r.reason && r.reason.message);
+            }
+        }
+    }
+
+    const data = { events: allEvents };
+    weekWindowCache     = data;
+    weekWindowCacheTime = Date.now();
+    return data;
+}
+
+function fetchTeamGame(teamId) {
+    // hasOwnProperty (not just truthiness) so a `null` entry — used to force the
+    // "No Game" state — is honored instead of falling through to the real API.
+    if (Object.prototype.hasOwnProperty.call(DEBUG_FAKE_GAMES, teamId)) {
+        return Promise.resolve(DEBUG_FAKE_GAMES[teamId]);
+    }
+
+    const now = DEBUG_ANCHOR_DATE ? new Date(DEBUG_ANCHOR_DATE) : new Date();
+    // Don't roll to the next day's slate until 2am — covers late-running games
+    if (!DEBUG_ANCHOR_DATE && now.getHours() < 2) now.setDate(now.getDate() - 1);
+
+    return fetchWeekWindow().then(data => parseGames(data, teamId, now));
 }
 
 // Pick the single most relevant event for this team out of a multi-week scoreboard:
