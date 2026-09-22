@@ -254,7 +254,7 @@ class SimpleWS extends events.EventEmitter {
 }
 
 // ── Plugin state ──────────────────────────────────────────────────────────────
-const instances      = new Map(); // context -> { teamId, teamAbbr, bgColor, bgOpacity }
+const instances      = new Map(); // context -> { teamId, teamAbbr, linkType, customUrl, bgColor, bgOpacity }
 const prevScores     = new Map(); // context -> { awayScore, homeScore }
 const prevState      = new Map(); // context -> last known game state string
 const flashing        = new Set(); // contexts mid-flash animation
@@ -263,6 +263,7 @@ const lastRender      = new Map(); // context -> JSON key of last rendered lines
 const currentGame     = new Map(); // context -> parsed game object | null
 const refreshTimers   = new Map(); // context -> timeoutId (self-rescheduling; cadence varies, see scheduleNextRefresh)
 const lastPossession  = new Map(); // context -> { eventId, possession, isRedZone } — last known-good possession for the current game
+const gameFinalAt     = new Map(); // context -> timestamp when live→final was detected (drives the Custom Link post-final grace window)
 
 // ── Connect to Stream Deck ────────────────────────────────────────────────────
 log('Connecting to Stream Deck on port', sdPort);
@@ -286,6 +287,30 @@ ws.on('close', ()  => {
     setTimeout(() => process.exit(0), 2000);
 });
 
+// ── Button-press link (ESPN Gamecast vs. a user-supplied Custom Link) ──────────
+// Mirrors the same pattern used in Live MLB Scores: a custom link only takes
+// over once the game has actually started (or is final within its grace
+// window) — before kickoff there's nothing at the custom URL worth sending
+// someone to, so Gamecast is always the fallback. Also falls back to Gamecast
+// if Custom Link is selected but no URL has been configured yet, so the
+// button never opens a blank tab.
+const CUSTOM_LINK_FINAL_GRACE_MS = 30 * 60 * 1000; // keep opening the custom link for 30 min post-final, then revert to Gamecast
+function effectiveGameLink(game, cfg, context) {
+    const gamecastUrl = game.link;
+    if (!cfg || cfg.linkType !== 'custom' || !cfg.customUrl) return gamecastUrl;
+
+    const gameStarted = game.state === 'live' || game.state === 'final';
+    if (!gameStarted) {
+        log('Custom link requested but game has not started (state=' + game.state + ') — falling back to Gamecast');
+        return gamecastUrl;
+    }
+    if (game.state === 'final') {
+        const finalAt = gameFinalAt.get(context);
+        if (!finalAt || Date.now() - finalAt > CUSTOM_LINK_FINAL_GRACE_MS) return gamecastUrl;
+    }
+    return cfg.customUrl;
+}
+
 // ── Stream Deck event handler ─────────────────────────────────────────────────
 function handleEvent({ event, context, payload }) {
     switch (event) {
@@ -307,6 +332,7 @@ function handleEvent({ event, context, payload }) {
             refreshing.delete(context);
             flashing.delete(context);
             lastPossession.delete(context);
+            gameFinalAt.delete(context);
             if (refreshTimers.has(context)) {
                 clearTimeout(refreshTimers.get(context));
                 refreshTimers.delete(context);
@@ -323,8 +349,10 @@ function handleEvent({ event, context, payload }) {
         case 'keyUp': {
             const game = currentGame.get(context);
             if (game && game.link) {
-                log('keyUp — opening URL:', game.link);
-                ws.send(JSON.stringify({ event: 'openUrl', payload: { url: game.link } }));
+                const cfg = instances.get(context) || {};
+                const url = effectiveGameLink(game, cfg, context);
+                log('keyUp — opening URL:', url);
+                ws.send(JSON.stringify({ event: 'openUrl', payload: { url } }));
             } else {
                 const cfg    = instances.get(context) || {};
                 const teamId = cfg.teamId;
@@ -395,6 +423,7 @@ async function refreshButton(context) {
     try {
         const game = await fetchTeamGame(cfg.teamId);
         currentGame.set(context, game || null);
+        if (!game || game.state !== 'final') gameFinalAt.delete(context);
 
         // Detect live → final transition and play fireworks
         const prevGameState = prevState.get(context);
@@ -404,6 +433,7 @@ async function refreshButton(context) {
             const winnerName   = winnerIsHome ? game.homeName  : game.awayName;
             const winnerColor  = winnerIsHome ? game.homeColor : game.awayColor;
             log('Game over — fireworks for', winnerName);
+            gameFinalAt.set(context, Date.now()); // starts the Custom Link post-final grace window
             refreshing.delete(context);
             playFireworks(context, winnerName, winnerColor).catch(e => log('fireworks error:', e.message));
             return;

@@ -263,6 +263,18 @@
     Tracking: <span id="selectedTeamName"></span>
 </div>
 
+<label for="linkType" style="margin-top:14px;">Button Press Opens</label>
+<select id="linkType">
+    <option value="gamecast">ESPN Gamecast (default)</option>
+    <option value="custom">Custom Link</option>
+</select>
+
+<div class="field" id="customUrlField" style="margin-top:8px; display:none;">
+    <label for="customUrlInput">Custom URL</label>
+    <input type="text" id="customUrlInput" placeholder="e.g. https://www.foxsports.com/live/your-rsn"/>
+    <div class="bg-hint">Opens ESPN Gamecast until the game actually starts, then this URL instead — handy for a regional sports network's live-game page or any other link you'd rather use. Keeps opening it for 30 minutes after the final whistle, then reverts to Gamecast.</div>
+</div>
+
 <div class="field" style="margin-top: 16px;">
     <label>Key Background</label>
     <div class="checkbox-row">
@@ -513,7 +525,7 @@
     // Current settings blob — kept in sync with the form and sent as one
     // merged object so changing the team doesn't clobber the background
     // color (and vice versa).
-    var currentSettings = { teamId: null, teamAbbr: null, bgColor: null, bgOpacity: 100 };
+    var currentSettings = { teamId: null, teamAbbr: null, linkType: 'gamecast', customUrl: null, bgColor: null, bgOpacity: 100 };
 
     // ── Autocomplete ──────────────────────────────────────────────────────────
     var acList      = document.getElementById('autocompleteList');
@@ -658,6 +670,8 @@
         if (!settings) return;
         currentSettings.teamId    = settings.teamId    || null;
         currentSettings.teamAbbr  = settings.teamAbbr   || null;
+        currentSettings.linkType  = settings.linkType   || 'gamecast';
+        currentSettings.customUrl = settings.customUrl  || null;
         currentSettings.bgColor   = settings.bgColor    || null;
         currentSettings.bgOpacity = settings.bgOpacity != null ? settings.bgOpacity : 100;
 
@@ -666,6 +680,10 @@
         // should show an empty search box, not the team name sitting in it
         // as if it were a live query.
         syncTeamSelectionUI();
+
+        document.getElementById('linkType').value = currentSettings.linkType;
+        document.getElementById('customUrlInput').value = currentSettings.customUrl || '';
+        toggleCustomUrlField();
 
         var bgEnabled  = document.getElementById('bgEnabled');
         var bgControls = document.getElementById('bgControls');
@@ -685,12 +703,51 @@
         var payload = {
             teamId:    currentSettings.teamId,
             teamAbbr:  currentSettings.teamAbbr,
+            linkType:  currentSettings.linkType,
+            customUrl: currentSettings.customUrl,
             bgColor:   currentSettings.bgColor,
             bgOpacity: currentSettings.bgOpacity
         };
         websocket.send(JSON.stringify({ event: 'setSettings',  context: uuid,        payload: payload }));
         websocket.send(JSON.stringify({ event: 'sendToPlugin', context: uuid, action: actionUUID, payload: { event: 'settingsChanged', settings: payload } }));
     }
+
+    // Most people type "foxsports.com/..." without a scheme — the browser
+    // needs http(s):// or openUrl silently does nothing. Default to https://
+    // rather than guessing http, since that's the safer/more common case.
+    function normalizeUrl(raw) {
+        var url = (raw || '').trim();
+        if (!url) return '';
+        if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) url = 'https://' + url;
+        return url;
+    }
+
+    function toggleCustomUrlField() {
+        var linkSel = document.getElementById('linkType');
+        document.getElementById('customUrlField').style.display = (linkSel.value === 'custom') ? 'block' : 'none';
+    }
+
+    // ── Button-press link controls ───────────────────────────────────────────
+    document.getElementById('linkType').addEventListener('change', function() {
+        currentSettings.linkType = this.value;
+        toggleCustomUrlField();
+        saveSettings();
+    });
+
+    document.getElementById('customUrlInput').addEventListener('input', function() {
+        // Store the raw, as-typed value while the user is still typing — only
+        // normalize (and save that normalized form) so the field doesn't fight
+        // the cursor by rewriting itself mid-keystroke.
+        currentSettings.customUrl = normalizeUrl(this.value);
+        saveSettings();
+    });
+
+    // Rewrite the field to the normalized (scheme-prefixed) value once the
+    // user leaves it, so what's displayed matches what actually gets saved
+    // and opened.
+    document.getElementById('customUrlInput').addEventListener('blur', function() {
+        this.value = normalizeUrl(this.value);
+    });
 
     // ── Background color controls ─────────────────────────────────────────────
     var bgEnabledEl      = document.getElementById('bgEnabled');

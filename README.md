@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your buttons. Each button tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.14-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.15-green)
 
 ---
 
@@ -15,7 +15,7 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 - **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
 - **Score-change flash** — when a team scores, the button flashes in that team's primary color
 - **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
-- **Gamecast shortcut** — press any button to open that game directly in ESPN Gamecast
+- **Gamecast shortcut** — press any button to open that game directly in ESPN Gamecast, or a custom link of your choice (e.g. your regional sports network) once the game actually starts
 - **Off-week shortcut** — if your team has no game scheduled, pressing the button opens that team's full schedule on ESPN instead
 - **No-flicker updates** — buttons only redraw when the display actually changes
 - **Multi-button support** — add as many team buttons as you want, each refreshes independently
@@ -25,6 +25,9 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 ---
 
 ## Recent Updates
+
+**v1.0.15.0**
+- Added a "Custom Link" option to Button Press Opens (matching Live MLB Scores) — enter any URL, such as your regional sports network's live-game page, and the button opens ESPN Gamecast until the game actually starts, then switches to your link. Keeps opening it for 30 minutes after the final whistle for post-game coverage, then reverts to Gamecast. Falls back to Gamecast if the field is left blank.
 
 **v1.0.14.0**
 - Fixed every button showing `Err`: ESPN changed its scoreboard API to reject the multi-day `dates=<range>` query this plugin used to pull a team's window in one request — even a single-day range now gets a flat HTTP 400. Rebuilt the same coverage (last week's final, this week, next week) from up to three requests scoped to `week` + `seasontype` instead, the one query shape ESPN still accepts, merged into one event list and cached for 20 seconds so multiple buttons share the same fetch instead of multiplying requests.
@@ -103,7 +106,12 @@ A Stream Deck plugin that shows live college football scores directly on your bu
 
 1. Drag the **Live CFB Scores** action onto any button
 2. In the settings panel on the right, find your team by typing into the search box or by picking a conference and then a team from the dropdowns
-3. That's it — the button will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
+3. Choose what happens when you press the button:
+   - **ESPN Gamecast (default)** — opens the game's live Gamecast page
+   - **Custom Link** — opens any URL you enter, such as your regional sports network's live-game page
+4. That's it — the button will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
+
+> **Note:** If Custom Link is selected but the game hasn't started yet, pressing the button opens Gamecast instead — a Custom Link with no URL entered behaves the same way. After the final whistle, the button keeps opening your custom link for 30 minutes to cover post-game coverage, then automatically switches back to Gamecast.
 
 ---
 
