@@ -117,7 +117,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## What the Key Shows
 
-![Live CFB Scores key states](screenshots/button-states.png)
+![Live CFB Scores key states](assets/button-states.png)
 
 **Before the game:**
 ```
