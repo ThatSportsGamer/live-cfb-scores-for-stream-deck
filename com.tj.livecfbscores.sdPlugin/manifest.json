@@ -1,7 +1,7 @@
 {
     "Author": "T.J. Lauerman aka ThatSportsGamer",
     "CodePath": "plugin.js",
-    "Description": "Shows live college football scores on your Stream Deck. Each button tracks one FBS team — see the current score, quarter, clock, and possession at a glance.",
+    "Description": "Shows live college football scores on your Stream Deck. Each key tracks one FBS team — see the current score, quarter, clock, and possession at a glance.",
     "Name": "Live CFB Scores",
     "UUID": "com.tj.livecfbscores",
     "Category": "Live Sports Scores",

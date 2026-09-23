@@ -287,7 +287,7 @@ ws.on('close', ()  => {
     setTimeout(() => process.exit(0), 2000);
 });
 
-// ── Button-press link (ESPN Gamecast vs. a user-supplied Custom Link) ──────────
+// ── Key-press link (ESPN Gamecast vs. a user-supplied Custom Link) ──────────
 // Mirrors the same pattern used in Live MLB Scores: a custom link only takes
 // over once the game has actually started (or is final within its grace
 // window) — before kickoff there's nothing at the custom URL worth sending
