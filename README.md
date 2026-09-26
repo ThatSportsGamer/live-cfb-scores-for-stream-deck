@@ -2,7 +2,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Each key tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.15-green)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.16-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -25,6 +25,13 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 ---
 
 ## Recent Updates
+
+**v1.0.16.0**
+- Custom Link now stays active through weather/lightning delays instead of dropping back to Gamecast until play resumes
+- Fixed a background refresh that could keep running after a key was removed or you switched pages/profiles mid-update
+- Settings: "Key Press Opens" default now reads "ESPN Gamecast (free)", matching the other plugins
+- Custom Link URLs are also tidied up by the plugin itself (spaces trimmed, https:// added if missing, non-web links ignored) — a backstop for links saved before the settings panel started doing this
+- Turned off Node debug mode for release builds
 
 **v1.0.15.0**
 - Added a "Custom Link" option to Key Press Opens (matching Live MLB Scores) — enter any URL, such as your regional sports network's live-game page, and the key opens ESPN Gamecast until the game actually starts, then switches to your link. Keeps opening it for 30 minutes after the final whistle for post-game coverage, then reverts to Gamecast. Falls back to Gamecast if the field is left blank.
@@ -96,9 +103,15 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## Installation
 
+**Elgato Marketplace (recommended)**
+
+1. Open **[Live CFB Scores on the Elgato Marketplace](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)** and install it from there
+2. The plugin will appear in the Stream Deck action picker under **Live CFB Scores**
+
+**Manual install**
+
 1. Download the latest **`Live CFB Scores.streamDeckPlugin`** from the [Releases](../../releases) page
 2. Double-click the file — Stream Deck will install it automatically
-3. The plugin will appear in the Stream Deck action picker under **Live CFB Scores**
 
 ---
 

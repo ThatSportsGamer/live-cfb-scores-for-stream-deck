@@ -289,17 +289,32 @@ ws.on('close', ()  => {
 
 // ── Key-press link (ESPN Gamecast vs. a user-supplied Custom Link) ──────────
 // Mirrors the same pattern used in Live MLB Scores: a custom link only takes
-// over once the game has actually started (or is final within its grace
-// window) — before kickoff there's nothing at the custom URL worth sending
-// someone to, so Gamecast is always the fallback. Also falls back to Gamecast
+// over once the game has actually started (live, in a weather/lightning
+// delay — same as Live NFL Scores — or final within its grace window).
+// Before kickoff there's nothing at the custom URL worth sending someone
+// to, so Gamecast is always the fallback. Also falls back to Gamecast
 // if Custom Link is selected but no URL has been configured yet, so the
 // button never opens a blank tab.
+// Tidies a user-typed Custom Link: trims whitespace and adds https:// when no
+// scheme was typed ("www.foxsports.com/live/sny" -> "https://www.foxsports.com/live/sny"),
+// since Stream Deck won't open a bare domain as a web page. Returns '' for
+// anything that can't be a web link (blank, or a non-http scheme like file:),
+// so callers fall back to the default link instead of opening nothing.
+function normalizeCustomUrl(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) || /^(javascript|data|file|vbscript|mailto):/i.test(s)) return '';
+    return 'https://' + s.replace(/^\/+/, '');
+}
+
 const CUSTOM_LINK_FINAL_GRACE_MS = 30 * 60 * 1000; // keep opening the custom link for 30 min post-final, then revert to Gamecast
 function effectiveGameLink(game, cfg, context) {
     const gamecastUrl = game.link;
-    if (!cfg || cfg.linkType !== 'custom' || !cfg.customUrl) return gamecastUrl;
+    const customUrl   = normalizeCustomUrl(cfg && cfg.customUrl);
+    if (!cfg || cfg.linkType !== 'custom' || !customUrl) return gamecastUrl;
 
-    const gameStarted = game.state === 'live' || game.state === 'final';
+    const gameStarted = game.state === 'live' || game.state === 'delay' || game.state === 'final';
     if (!gameStarted) {
         log('Custom link requested but game has not started (state=' + game.state + ') — falling back to Gamecast');
         return gamecastUrl;
@@ -308,7 +323,7 @@ function effectiveGameLink(game, cfg, context) {
         const finalAt = gameFinalAt.get(context);
         if (!finalAt || Date.now() - finalAt > CUSTOM_LINK_FINAL_GRACE_MS) return gamecastUrl;
     }
-    return cfg.customUrl;
+    return customUrl;
 }
 
 // ── Stream Deck event handler ─────────────────────────────────────────────────
@@ -402,6 +417,12 @@ function scheduleNextRefresh(context) {
     const delay = nextRefreshDelay(context);
     const timer = setTimeout(async () => {
         await refreshButton(context);
+        // Only re-arm if this key is still on screen and this timer is still
+        // the one it owns. A willDisappear (page/profile switch, key removed)
+        // or a fresh willAppear can land while the fetch above is in flight;
+        // re-arming unconditionally would leave an orphaned poller hitting
+        // ESPN every 30s for a key that no longer exists.
+        if (!instances.has(context) || refreshTimers.get(context) !== timer) return;
         scheduleNextRefresh(context);
     }, delay);
     refreshTimers.set(context, timer);
