@@ -4,7 +4,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Each key tracks one FBS team and updates automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.16-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.17-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -27,6 +27,10 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 ---
 
 ## Recent Updates
+
+**v1.0.17.0**
+- Pregame key shows just the time on game day ("7:30 PM"); the weekday only appears for games later in the week
+- Score lines size up to 18pt to match the other plugins, stepping down only when a line is too wide
 
 **v1.0.16.0**
 - Custom Link now stays active through weather/lightning delays instead of dropping back to Gamecast until play resumes
