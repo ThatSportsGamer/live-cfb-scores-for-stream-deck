@@ -542,7 +542,7 @@ function fitFs(text, maxFs) {
 // is used as a per-game fallback — it only shrinks further for the specific
 // combos that actually need it, rather than shrinking every game.
 function baseTierFs(abbr) {
-    return abbr.length >= 4 ? 16 : 17;
+    return abbr.length >= 4 ? 16 : 18; // 18 matches the score lines in the MLB/NHL/NBA plugins; fitFs() still shrinks anything that won't fit
 }
 
 // Real Helvetica-Bold glyph widths (per 1000 em units, from the standard AFM
