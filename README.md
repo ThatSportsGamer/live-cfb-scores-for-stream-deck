@@ -38,6 +38,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - New: **Top 25 rankings** on both actions — a small rank before ranked teams' abbreviations. On by default; turn it off with "Show Top 25 rankings" in the settings panel
 - Pregame keys show "TBD" when the network hasn't set the kickoff time yet (instead of a midnight placeholder), on both actions
 - Final games now open ESPN's box score instead of Gamecast, on both actions
+- Bye weeks now show `BYE WEEK` for the whole off week (Monday 3:00 AM ET to Monday 3:00 AM ET). Before, the key jumped ahead to the next game a week early
 
 **v1.0.18.0**
 - Score flash is now 5 solid blinks of the scoring team's color with no text, so it reads at a glance even on light team colors
@@ -188,7 +189,7 @@ UGA   45
  UGA
 BYE WEEK
 ```
-Shown when other teams have games this week but yours doesn't. Pressing the key opens that team's schedule on ESPN.
+Shown for the whole off week: from the Monday 3:00 AM ET after the team's last game until the Monday 3:00 AM ET that starts the week of its next game. Pressing the key opens that team's schedule on ESPN.
 
 **No game found:**
 ```
