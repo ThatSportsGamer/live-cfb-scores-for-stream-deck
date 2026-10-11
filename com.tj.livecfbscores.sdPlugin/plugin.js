@@ -1159,28 +1159,33 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
         if (i > 0) y += lineHeights[i - 1] - items[i - 1].fs * 0.80 + fs * 0.80;
 
         if (parts && parts.length) {
-            // Any number of colored segments in one centered <text>. A `small`
-            // segment (the Top 25 rank) is drawn at RANK_SCALE size, raised so
-            // it sits centered on the capital letters, and the next segment
-            // drops back to the baseline. Spaces live in the segment text
-            // itself (kept by xml:space="preserve").
-            let shift = 0, spans = '';
+            // Any number of colored segments in one centered <text>, so the
+            // device centers the line with its own font metrics. A `small`
+            // segment (the Top 25 rank) can't be raised inside that <text> —
+            // Stream Deck's SVG renderer ignores tspan dy/dx — so it's kept
+            // there invisibly (reserving its width) and drawn again as its own
+            // <text>, raised to sit centered on the capitals. Its x comes from
+            // the glyph-width table; any error is a pixel or so on a small
+            // number. Spaces live in the segment text (xml:space="preserve").
+            let spans = '', overlays = '', offset = 0;
+            const widthOf = p => textWidthPx(p.text, p.small ? rankFs(fs) : fs);
+            const lineW = parts.reduce((w, p) => w + widthOf(p), 0);
             for (const p of parts) {
-                let attrs = `fill="${p.color || color || 'white'}"`;
                 if (p.small) {
                     const rf = rankFs(fs), up = 0.716 * (fs - rf) / 2;
-                    attrs += ` font-size="${rf}" dy="${(-up - shift).toFixed(2)}"`;
-                    shift = -up;
-                } else if (shift) {
-                    attrs += ` font-size="${fs}" dy="${(-shift).toFixed(2)}"`;
-                    shift = 0;
+                    spans += `<tspan font-size="${rf}" fill-opacity="0">${escXml(p.text)}</tspan>`;
+                    overlays +=
+                        `<text x="${(36 - lineW / 2 + offset).toFixed(2)}" y="${(y - up).toFixed(2)}" text-anchor="start" xml:space="preserve" ` +
+                        `fill="${p.color || color || 'white'}" font-family="Helvetica Neue,Arial,sans-serif" font-size="${rf}" font-weight="600">${escXml(p.text)}</text>`;
+                } else {
+                    spans += `<tspan fill="${p.color || color || 'white'}">${escXml(p.text)}</tspan>`;
                 }
-                spans += `<tspan ${attrs}>${escXml(p.text)}</tspan>`;
+                offset += widthOf(p);
             }
             return (
                 `<text x="36" y="${y.toFixed(1)}" text-anchor="middle" xml:space="preserve" ` +
                 `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">` +
-                spans + `</text>`
+                spans + `</text>` + overlays
             );
         }
 
