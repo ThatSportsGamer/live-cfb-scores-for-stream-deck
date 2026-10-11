@@ -1514,27 +1514,6 @@ function sortBoardKeys(contexts, order) {
     });
 }
 
-// ── Per-group week window (this / last / next week), cached like the team keys' ──
-const groupWindowCache = new Map(); // group -> { at, events }
-async function fetchGroupWindow(group) {
-    if (group === 80) return fetchWeekWindow(); // shared with team keys
-    const hit = groupWindowCache.get(group);
-    if (hit && Date.now() - hit.at < WEEK_WINDOW_TTL_MS) return { events: hit.events };
-    const base    = SCOREBOARD_URL.replace('groups=80', 'groups=' + group);
-    const current = await fetchJson(base);
-    const events  = Array.isArray(current.events) ? current.events.slice() : [];
-    const weekNum = current.week && current.week.number;
-    const sType   = current.leagues && current.leagues[0] && current.leagues[0].season &&
-                    current.leagues[0].season.type && current.leagues[0].season.type.type;
-    if (weekNum != null && sType != null) {
-        const weeks = weekNum > 1 ? [weekNum - 1, weekNum + 1] : [weekNum + 1];
-        const res = await Promise.allSettled(weeks.map(w => fetchJson(`${base}&week=${w}&seasontype=${sType}`)));
-        for (const r of res) if (r.status === 'fulfilled' && Array.isArray(r.value.events)) events.push(...r.value.events);
-    }
-    groupWindowCache.set(group, { at: Date.now(), events });
-    return { events };
-}
-
 // Which week a board shows: the earliest week whose hold hasn't expired —
 // a week holds until the Monday 3:00 AM ET after its last game (same rule
 // team keys use for finals), so Saturday's finals stay up through the
@@ -1560,6 +1539,13 @@ function boardWeekEvents(allEvents) {
 
 // Games for one board, filtered and ordered per its settings.
 function boardGameList(events, st, now) {
+    // Conference boards: games with at least one team from that conference
+    // (ESPN tags every team with its conferenceId), so non-conference games count.
+    if (st.source !== 'top25' && st.source !== 'fbs') {
+        const conf = String(BOARD_SOURCES[st.source].group);
+        events = events.filter(e => e.competitions && e.competitions[0] && (e.competitions[0].competitors || [])
+            .some(c => c.team && String(c.team.conferenceId) === conf));
+    }
     let games = boardWeekEvents(events)
         .map(e => { try { return parseEvent(e, now); } catch (err) { log('board parse error:', err.message); return null; } })
         .filter(Boolean);
@@ -1602,17 +1588,16 @@ async function refreshBoard() {
             if (!boards.has(id)) boards.set(id, { settings: k.settings, keys: [] });
             boards.get(id).keys.push(ctx);
         }
-        // One fetch per group in use (Top 25 and All FBS share the FBS window).
-        const groups = [...new Set([...boards.values()].map(b => BOARD_SOURCES[b.settings.source].group))];
-        const windows = new Map();
-        await Promise.all(groups.map(async g => {
-            try { windows.set(g, (await fetchGroupWindow(g)).events || []); }
-            catch (err) { log('Scoreboard fetch error (group ' + g + '):', err.message); windows.set(g, null); }
-        }));
+        // One shared FBS fetch (last / this / next week, the same cached one the
+        // team keys use) feeds every board; conference boards filter it locally.
+        // So any number of boards costs the same 3 requests as one team key.
+        let fbsEvents = null;
+        try { fbsEvents = (await fetchWeekWindow()).events || []; }
+        catch (err) { log('Scoreboard fetch error:', err.message); }
 
         const overflow = new Set(), allGames = [];
         for (const b of boards.values()) {
-            const st = b.settings, events = windows.get(BOARD_SOURCES[st.source].group);
+            const st = b.settings, events = fbsEvents;
             const sorted = sortBoardKeys(b.keys.slice(), st.sortOrder);
             for (const ctx of sorted) boardSourceOf.set(ctx, st.source);
             const cfg   = boardKeyCfg(st);

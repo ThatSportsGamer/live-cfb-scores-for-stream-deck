@@ -229,6 +229,8 @@ The plugin polls [ESPN's public college football scoreboard API](https://site.ap
 
 Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 17-day window (seven days back, ten days ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final — so the key holds onto a result until the next game appears on the schedule (through the following Monday, 3:00 AM ET, if it finished before then).
 
+Scoreboard keys reuse that same window: every board on every deck, whatever it shows, is filled from the one shared fetch (conference boards just filter it by each team's conference), so adding boards doesn't add requests to ESPN.
+
 The settings panel's team picker works the same way — it fetches ESPN's full FBS standings once when opened to build its searchable list of all 136 teams, since a single scoreboard poll only ever contains teams that have games in the current window. If that fetch fails, the picker falls back to a bundled list so it's never empty.
 
 ---
