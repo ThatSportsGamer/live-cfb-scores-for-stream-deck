@@ -598,7 +598,7 @@ const GLYPH_WIDTH_1000 = {
     S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
     0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556,
     '&': 778, '-': 333, // covers the two non-alpha FBS abbrs: TA&M, M-OH
-    '@': 975,
+    '@': 975, v: 556, s: 556, // lowercase only for "vs" (neutral-site games)
     ' ': 278, // real Helvetica-Bold space width — was falling back to the 600
               // generic default (nearly a full capital letter wide), which made
               // fitFs() overestimate "ABBR SCORE" and shrink the font a point
@@ -652,10 +652,11 @@ function matchupLine(game, cfg) {
     const ar = rankPart(game.awayRank, cfg), hr = rankPart(game.homeRank, cfg);
     if (!ar && !hr) return game.matchup;
     let fs = 16;
-    const w = f => textWidthPx(game.awayAbbr + ' @ ' + game.homeAbbr, f) +
+    const sep = game.sep || ' @ ';
+    const w = f => textWidthPx(game.awayAbbr + sep + game.homeAbbr, f) +
                    rankWidth(game.awayRank, cfg, f) + rankWidth(game.homeRank, cfg, f);
     while (fs > 8 && w(fs) > 64) fs--;
-    return { fs, parts: [ar, { text: game.awayAbbr }, { text: ' @ ' }, hr, { text: game.homeAbbr }].filter(Boolean) };
+    return { fs, parts: [ar, { text: game.awayAbbr }, { text: sep }, hr, { text: game.homeAbbr }].filter(Boolean) };
 }
 
 function buildLines(game, cfg) {
@@ -1001,7 +1002,9 @@ function parseEvent(e, now) {
     const homeName  = home?.team?.shortDisplayName || homeAbbr;
     const awayColor = away?.team?.color ? '#' + away.team.color : '#FFFFFF';
     const homeColor = home?.team?.color ? '#' + home.team.color : '#FFFFFF';
-    const matchup   = awayAbbr + ' @ ' + homeAbbr;
+    // Neutral-site games (Red River, bowls, CFP, ...) read "OU vs TEX" instead of "@"
+    const sep       = comp.neutralSite ? ' vs ' : ' @ ';
+    const matchup   = awayAbbr + sep + homeAbbr;
 
     const gcLink = (e.links || []).find(l => (l.text || '').toLowerCase() === 'gamecast') || (e.links || [])[0];
     const link   = gcLink?.href || ('https://www.espn.com/college-football/game/_/gameId/' + e.id);
@@ -1012,7 +1015,7 @@ function parseEvent(e, now) {
 
     const base = {
         matchup, awayId, homeId, awayAbbr, homeAbbr, awayName, homeName, awayColor, homeColor,
-        awayRank, homeRank, eventId: e.id, link
+        awayRank, homeRank, sep, eventId: e.id, link
     };
 
     if (name.includes('POSTPONED') || name.includes('CANCEL')) return { ...base, state: 'ppd' };

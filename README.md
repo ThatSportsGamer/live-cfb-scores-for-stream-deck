@@ -39,6 +39,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - Pregame keys show "TBD" when the network hasn't set the kickoff time yet (instead of a midnight placeholder), on both actions
 - Final games now open ESPN's box score instead of Gamecast, on both actions
 - Bye weeks now show `BYE WEEK` for the whole off week (Monday 3:00 AM ET to Monday 3:00 AM ET). Before, the key jumped ahead to the next game a week early
+- Neutral-site games (Texas–Oklahoma in Dallas, bowls, the CFP) show `TEX vs OU` instead of `@`, on both actions
 
 **v1.0.18.0**
 - Score flash is now 5 solid blinks of the scoring team's color with no text, so it reads at a glance even on light team colors
