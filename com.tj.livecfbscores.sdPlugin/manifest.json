@@ -1,14 +1,14 @@
 {
     "Author": "T.J. Lauerman aka ThatSportsGamer",
     "CodePath": "plugin.js",
-    "Description": "Shows live college football scores on your Stream Deck. Each key tracks one FBS team — see the current score, quarter, clock, and possession at a glance.",
+    "Description": "Shows live college football scores on your Stream Deck. Track one FBS team per key, or lay out the week's Top 25, a conference, or all of FBS with the Scoreboard action — score, quarter, clock, possession and rankings at a glance.",
     "Name": "Live CFB Scores",
     "UUID": "com.tj.livecfbscores",
     "Category": "Live Sports Scores",
     "URL": "https://github.com/ThatSportsGamer/live-cfb-scores-for-stream-deck",
     "Icon": "imgs/plugin-icon",
     "CategoryIcon": "imgs/category-icon",
-    "Version": "1.0.18.0",
+    "Version": "1.1.0.0",
     "SDKVersion": 3,
     "Software": {
         "MinimumVersion": "6.9"
@@ -37,6 +37,20 @@
             "States": [
                 {
                     "Image": "imgs/action-icon",
+                    "Title": ""
+                }
+            ],
+            "SupportedInMultiActions": false
+        },
+        {
+            "Name": "Live CFB Scoreboard",
+            "UUID": "com.tj.livecfbscores.scoreboard",
+            "Icon": "imgs/scoreboard-icon",
+            "Tooltip": "Fills your keys with this week's college football games — the Top 25, a conference, or all of FBS — one game per key.",
+            "PropertyInspectorPath": "scoreboard-inspector.html",
+            "States": [
+                {
+                    "Image": "imgs/scoreboard-icon",
                     "Title": ""
                 }
             ],

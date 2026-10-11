@@ -328,7 +328,11 @@ function effectiveGameLink(game, cfg, context) {
 }
 
 // ── Stream Deck event handler ─────────────────────────────────────────────────
-function handleEvent({ event, context, payload }) {
+function handleEvent(ev) {
+    const { event, context, payload } = ev;
+    // Scoreboard keys are a separate action with their own handler (see the
+    // Scoreboard section at the bottom of this file).
+    if (ev.action === BOARD_ACTION || (context && boardKeys.has(context))) { handleBoardEvent(ev); return; }
     switch (event) {
 
         case 'willAppear':
@@ -445,99 +449,114 @@ async function refreshButton(context) {
     log('Refreshing', cfg.teamAbbr || cfg.teamId, '— bg:', JSON.stringify(resolveBgColor(cfg)));
     try {
         const game = await fetchTeamGame(cfg.teamId);
-        currentGame.set(context, game || null);
-        if (!game || game.state !== 'final') gameFinalAt.delete(context);
-
-        // Detect live → final transition and play fireworks
-        const prevGameState = prevState.get(context);
-        prevState.set(context, game ? game.state : null);
-        if (prevGameState === 'live' && game && game.state === 'final') {
-            const winnerIsHome = game.homeScore >= game.awayScore;
-            const winnerName   = winnerIsHome ? game.homeName  : game.awayName;
-            const winnerColor  = winnerIsHome ? game.homeColor : game.awayColor;
-            log('Game over — fireworks for', winnerName);
-            gameFinalAt.set(context, Date.now()); // starts the Custom Link post-final grace window
-            refreshing.delete(context);
-            playFireworks(context, winnerName, winnerColor).catch(e => log('fireworks error:', e.message));
-            return;
-        }
-
-        // ESPN's `situation` block (possession/red zone) occasionally goes blank
-        // for a single poll right around a scoring play — e.g. during an extra
-        // point attempt, right after the touchdown that preceded it — even
-        // though the game is still very much live. Without this, that gap
-        // reads as "nobody has the ball" and the possession indicator visibly
-        // flashes to white and back, which looks like a bug rather than what
-        // it is (a brief upstream data gap). So: hold onto the last known-good
-        // possession for this specific game (matched by eventId, so a stale
-        // value never leaks into a *different* game) and fall back to it only
-        // when the fresh fetch came back empty.
-        //
-        // Halftime is deliberately excluded from that fallback — it's the same
-        // "situation is blank" shape as a PAT gap, but the blank stretch can
-        // run 15-20 real minutes with genuinely nobody holding the ball, so
-        // carrying forward whoever had it before the half would be actively
-        // misleading rather than smoothing over a blip. It's cleared here and
-        // re-armed naturally once real possession data resumes for the second half.
-        if (game && game.state === 'live') {
-            if (game.possession != null) {
-                lastPossession.set(context, { eventId: game.eventId, possession: game.possession, isRedZone: game.isRedZone });
-            } else if (game.statusName !== 'STATUS_HALFTIME') {
-                const last = lastPossession.get(context);
-                if (last && last.eventId === game.eventId) {
-                    game.possession = last.possession;
-                    game.isRedZone  = last.isRedZone;
-                }
-            }
-        }
-
-        const lines   = buildLines(game, cfg);
-        const spacing = lines.some(l => typeof l === 'object') ? 1.2 : 1.4;
-        log('→', JSON.stringify(lines));
-
-        // Detect score change on live games and flash in the scoring team's color
-        const prev = prevScores.get(context);
-        if (game && game.state === 'live') {
-            prevScores.set(context, { awayScore: game.awayScore, homeScore: game.homeScore });
-            if (prev) {
-                const awayScored = game.awayScore > prev.awayScore;
-                const homeScored = game.homeScore > prev.homeScore;
-                if (awayScored || homeScored) {
-                    const color = (awayScored && homeScored) ? '#FFFFFF'
-                        : awayScored ? game.awayColor
-                                     : game.homeColor;
-                    // Scoring card — one team only (both changing in one poll only
-                    // happens after missed polls, so that just flashes)
-                    let card = null, followUp = false;
-                    if (awayScored && homeScored) {
-                        lastTd.delete(context);
-                    } else {
-                        const side = awayScored ? 'away' : 'home';
-                        const d    = awayScored ? game.awayScore - prev.awayScore : game.homeScore - prev.homeScore;
-                        const play = scoringPlay(context, game, side, d);
-                        if (play) {
-                            card     = scoreCardLines(side === 'away' ? game.awayAbbr : game.homeAbbr, play.text);
-                            followUp = play.followUp;
-                        }
-                    }
-                    log('Score change —', followUp ? 'try card' : 'flashing ' + color, card ? JSON.stringify(card) : '');
-                    refreshing.delete(context);
-                    flashButton(context, color, lines, spacing, resolveBgColor(cfg), card, followUp).catch(e => log('flashButton error:', e.message));
-                    return;
-                }
-            }
-        } else {
-            prevScores.delete(context);
-            lastTd.delete(context);
-        }
-
-        setButton(context, lines, spacing, resolveBgColor(cfg));
+        presentGame(context, game, cfg);
     } catch (err) {
         log('Fetch error:', err.message);
         setButton(context, [cfg.teamAbbr || 'CFB', 'Err'], undefined, resolveBgColor(cfg));
     } finally {
         refreshing.delete(context);
     }
+}
+
+// Draws one key for one game: fireworks on live → final, the possession
+// hold-over, the score flash + scoring card, or the plain score. Shared by
+// team keys (refreshButton) and Scoreboard keys (renderBoardKey). Per-key
+// memory is matched by eventId, so a Scoreboard key whose slot moves to a
+// different game never compares one game's score against another's.
+function presentGame(context, game, cfg) {
+    currentGame.set(context, game || null);
+    const gid = game ? game.eventId : null;
+    if (!game || game.state !== 'final') gameFinalAt.delete(context);
+
+    // Detect live → final transition and play fireworks. Matched by
+    // eventId so a Scoreboard key whose slot moves to another game never
+    // compares two different games.
+    const prevGame      = prevState.get(context);
+    const prevGameState = prevGame && prevGame.eventId === gid ? prevGame.state : null;
+    prevState.set(context, game ? { eventId: gid, state: game.state } : null);
+    if (prevGameState === 'live' && game && game.state === 'final') {
+        const winnerIsHome = game.homeScore >= game.awayScore;
+        const winnerName   = winnerIsHome ? game.homeName  : game.awayName;
+        const winnerColor  = winnerIsHome ? game.homeColor : game.awayColor;
+        log('Game over — fireworks for', winnerName);
+        gameFinalAt.set(context, Date.now()); // starts the Custom Link post-final grace window
+        refreshing.delete(context);
+        playFireworks(context, winnerName, winnerColor).catch(e => log('fireworks error:', e.message));
+        return;
+    }
+
+    // ESPN's `situation` block (possession/red zone) occasionally goes blank
+    // for a single poll right around a scoring play — e.g. during an extra
+    // point attempt, right after the touchdown that preceded it — even
+    // though the game is still very much live. Without this, that gap
+    // reads as "nobody has the ball" and the possession indicator visibly
+    // flashes to white and back, which looks like a bug rather than what
+    // it is (a brief upstream data gap). So: hold onto the last known-good
+    // possession for this specific game (matched by eventId, so a stale
+    // value never leaks into a *different* game) and fall back to it only
+    // when the fresh fetch came back empty.
+    //
+    // Halftime is deliberately excluded from that fallback — it's the same
+    // "situation is blank" shape as a PAT gap, but the blank stretch can
+    // run 15-20 real minutes with genuinely nobody holding the ball, so
+    // carrying forward whoever had it before the half would be actively
+    // misleading rather than smoothing over a blip. It's cleared here and
+    // re-armed naturally once real possession data resumes for the second half.
+    if (game && game.state === 'live') {
+        if (game.possession != null) {
+            lastPossession.set(context, { eventId: game.eventId, possession: game.possession, isRedZone: game.isRedZone });
+        } else if (game.statusName !== 'STATUS_HALFTIME') {
+            const last = lastPossession.get(context);
+            if (last && last.eventId === game.eventId) {
+                game.possession = last.possession;
+                game.isRedZone  = last.isRedZone;
+            }
+        }
+    }
+
+    const lines   = buildLines(game, cfg);
+    const spacing = lines.some(l => typeof l === 'object') ? 1.2 : 1.4;
+    log('→', JSON.stringify(lines));
+
+    // Detect score change on live games and flash in the scoring team's color
+    const prevRaw = prevScores.get(context);
+    const prev    = prevRaw && prevRaw.eventId === gid ? prevRaw : null;
+    if (prevRaw && !prev) lastTd.delete(context); // slot moved to a different game
+    if (game && game.state === 'live') {
+        prevScores.set(context, { eventId: gid, awayScore: game.awayScore, homeScore: game.homeScore });
+        if (prev) {
+            const awayScored = game.awayScore > prev.awayScore;
+            const homeScored = game.homeScore > prev.homeScore;
+            if (awayScored || homeScored) {
+                const color = (awayScored && homeScored) ? '#FFFFFF'
+                    : awayScored ? game.awayColor
+                                 : game.homeColor;
+                // Scoring card — one team only (both changing in one poll only
+                // happens after missed polls, so that just flashes)
+                let card = null, followUp = false;
+                if (awayScored && homeScored) {
+                    lastTd.delete(context);
+                } else {
+                    const side = awayScored ? 'away' : 'home';
+                    const d    = awayScored ? game.awayScore - prev.awayScore : game.homeScore - prev.homeScore;
+                    const play = scoringPlay(context, game, side, d);
+                    if (play) {
+                        card     = scoreCardLines(side === 'away' ? game.awayAbbr : game.homeAbbr, play.text);
+                        followUp = play.followUp;
+                    }
+                }
+                log('Score change —', followUp ? 'try card' : 'flashing ' + color, card ? JSON.stringify(card) : '');
+                refreshing.delete(context);
+                flashButton(context, color, lines, spacing, resolveBgColor(cfg), card, followUp).catch(e => log('flashButton error:', e.message));
+                return;
+            }
+        }
+    } else {
+        prevScores.delete(context);
+        lastTd.delete(context);
+    }
+
+    setButton(context, lines, spacing, resolveBgColor(cfg));
 }
 
 // ── Text sizing helper — shrink font until the line fits the button width ─────
@@ -579,6 +598,7 @@ const GLYPH_WIDTH_1000 = {
     S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
     0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556,
     '&': 778, '-': 333, // covers the two non-alpha FBS abbrs: TA&M, M-OH
+    '@': 975,
     ' ': 278, // real Helvetica-Bold space width — was falling back to the 600
               // generic default (nearly a full capital letter wide), which made
               // fitFs() overestimate "ABBR SCORE" and shrink the font a point
@@ -607,14 +627,45 @@ function parseClockSeconds(clockStr) {
 }
 
 // ── Build button display lines ────────────────────────────────────────────────
+// ── Top 25 rank, drawn small and gray before the abbreviation ───────────────
+// Same idea as ESPN's scoreboard ("2 Georgia"), sized at 55% of the line and
+// centered on the letters. "Show Top 25 rankings" (on by default) turns it off.
+const RANK_COLOR = '#BBBBBB';
+const RANK_SCALE = 0.55;
+function showRanks(cfg) { return !cfg || cfg.showRanks !== false; }
+function rankFs(fs)     { return Math.round(fs * RANK_SCALE); }
+// Rank part ("6 " — the trailing space is the gap) or null when unranked/off.
+function rankPart(rank, cfg) {
+    return (rank && showRanks(cfg)) ? { text: rank + ' ', color: RANK_COLOR, small: true } : null;
+}
+function rankWidth(rank, cfg, fs) {
+    return (rank && showRanks(cfg)) ? textWidthPx(rank + ' ', rankFs(fs)) : 0;
+}
+// Largest size (<= maxFs) at which "[rank] ABBR rest" fits the key.
+function fitRanked(rank, cfg, text, maxFs) {
+    let fs = maxFs;
+    while (fs > 9 && textWidthPx(text, fs) + rankWidth(rank, cfg, fs) > 64) fs--;
+    return fs;
+}
+// Matchup line: plain string when nobody's ranked (unchanged look), else parts.
+function matchupLine(game, cfg) {
+    const ar = rankPart(game.awayRank, cfg), hr = rankPart(game.homeRank, cfg);
+    if (!ar && !hr) return game.matchup;
+    let fs = 16;
+    const w = f => textWidthPx(game.awayAbbr + ' @ ' + game.homeAbbr, f) +
+                   rankWidth(game.awayRank, cfg, f) + rankWidth(game.homeRank, cfg, f);
+    while (fs > 8 && w(fs) > 64) fs--;
+    return { fs, parts: [ar, { text: game.awayAbbr }, { text: ' @ ' }, hr, { text: game.homeAbbr }].filter(Boolean) };
+}
+
 function buildLines(game, cfg) {
     const abbr = cfg.teamAbbr || 'CFB';
     if (!game) return [abbr, 'No Game'];
     if (game.state === 'bye') return [abbr, 'BYE WEEK'];
 
-    if (game.state === 'preview') return [game.matchup, game.time];
-    if (game.state === 'ppd')     return [game.matchup, { text: 'PPD',   fs: 16, color: '#E74C3C' }];
-    if (game.state === 'delay')   return [game.matchup, { text: 'DELAY', fs: 14, color: '#3498DB' }];
+    if (game.state === 'preview') return [matchupLine(game, cfg), game.time];
+    if (game.state === 'ppd')     return [matchupLine(game, cfg), { text: 'PPD',   fs: 16, color: '#E74C3C' }];
+    if (game.state === 'delay')   return [matchupLine(game, cfg), { text: 'DELAY', fs: 14, color: '#3498DB' }];
 
     if (game.state === 'live') {
         const awayBall  = !!game.possession && game.possession === String(game.awayId);
@@ -627,7 +678,7 @@ function buildLines(game, cfg) {
         // which is close enough to the real Helvetica-Bold space width (0.278em)
         // that the plain "ABBR SCORE" width check fitFs() does is already an
         // accurate stand-in for the split rendering.
-        const fs = Math.min(fitFs(awayPlain, ceiling), fitFs(homePlain, ceiling));
+        const fs = Math.min(fitRanked(game.awayRank, cfg, awayPlain, ceiling), fitRanked(game.homeRank, cfg, homePlain, ceiling));
 
         // Possession shown by coloring just the team abbreviation \u2014 the score
         // stays white. Text content never changes length based on possession,
@@ -645,13 +696,15 @@ function buildLines(game, cfg) {
         // leading whitespace, which silently ate the gap on real hardware.
         // The visual gap is now an explicit pixel offset in makeImage instead.
         const awayLine = { fs, parts: [
-            { text: game.awayAbbr,            color: possessionColor(awayBall) },
-            { text: String(game.awayScore),   color: 'white' },
-        ] };
+            rankPart(game.awayRank, cfg),
+            { text: game.awayAbbr,                color: possessionColor(awayBall) },
+            { text: ' ' + game.awayScore,         color: 'white' },
+        ].filter(Boolean) };
         const homeLine = { fs, parts: [
-            { text: game.homeAbbr,            color: possessionColor(homeBall) },
-            { text: String(game.homeScore),   color: 'white' },
-        ] };
+            rankPart(game.homeRank, cfg),
+            { text: game.homeAbbr,                color: possessionColor(homeBall) },
+            { text: ' ' + game.homeScore,         color: 'white' },
+        ].filter(Boolean) };
 
         // The clock line no longer tracks red zone (moved onto the possessing
         // team's abbreviation above) — it only ever shows the two-minute timeout.
@@ -683,12 +736,16 @@ function buildLines(game, cfg) {
         const awayText = game.awayAbbr + ' ' + game.awayScore;
         const homeText = game.homeAbbr + ' ' + game.homeScore;
         const ceiling   = Math.min(baseTierFs(game.awayAbbr), baseTierFs(game.homeAbbr));
-        const fs        = Math.min(fitFs(awayText, ceiling), fitFs(homeText, ceiling));
+        const fs        = Math.min(fitRanked(game.awayRank, cfg, awayText, ceiling), fitRanked(game.homeRank, cfg, homeText, ceiling));
         const ot        = game.period > 4 ? game.period - 4 : 0;
         const label     = ot === 0 ? 'Final' : (ot === 1 ? 'Final/OT' : 'Final/' + ot + 'OT');
+        const scoreLine = (rank, text) => {
+            const r = rankPart(rank, cfg);
+            return r ? { fs, parts: [r, { text }] } : { text, fs };
+        };
         return [
-            { text: awayText, fs },
-            { text: homeText, fs },
+            scoreLine(game.awayRank, awayText),
+            scoreLine(game.homeRank, homeText),
             { text: label, fs: 12, color: '#FFD700' },
         ];
     }
@@ -930,16 +987,23 @@ function parseEvent(e, now) {
     const gcLink = (e.links || []).find(l => (l.text || '').toLowerCase() === 'gamecast') || (e.links || [])[0];
     const link   = gcLink?.href || ('https://www.espn.com/college-football/game/_/gameId/' + e.id);
 
+    // AP/CFP poll rank straight off the scoreboard (ESPN sends 99 for unranked)
+    const rankOf   = c => { const r = c?.curatedRank?.current; return (r >= 1 && r <= 25) ? r : null; };
+    const awayRank = rankOf(away), homeRank = rankOf(home);
+
     const base = {
         matchup, awayId, homeId, awayAbbr, homeAbbr, awayName, homeName, awayColor, homeColor,
-        eventId: e.id, link
+        awayRank, homeRank, eventId: e.id, link
     };
 
     if (name.includes('POSTPONED') || name.includes('CANCEL')) return { ...base, state: 'ppd' };
     if (/DELAY/.test(name))                                    return { ...base, state: 'delay' };
 
     if (state === 'pre') {
-        return { ...base, state: 'preview', time: fmtTime(e.date, now) };
+        // Kickoff not set yet (networks pick CFB times 6-12 days out) — ESPN
+        // marks those timeValid: false with a placeholder midnight time.
+        const tbd = comp.timeValid === false || /\bTBD\b/i.test(type.shortDetail || type.detail || '');
+        return { ...base, state: 'preview', time: tbd ? tbdLabel(e.date, now) : fmtTime(e.date, now) };
     }
 
     const awayScore = parseInt(away?.score, 10) || 0;
@@ -947,7 +1011,9 @@ function parseEvent(e, now) {
     const period     = status.period || type.period || 1;
 
     if (state === 'post') {
-        return { ...base, state: 'final', awayScore, homeScore, period };
+        // Finished games open ESPN's box score instead of Gamecast
+        const boxLink = 'https://www.espn.com/college-football/boxscore/_/gameId/' + e.id;
+        return { ...base, link: boxLink, state: 'final', awayScore, homeScore, period };
     }
 
     // Live — pull down/distance/possession info defensively; ESPN omits `situation`
@@ -964,6 +1030,22 @@ function parseEvent(e, now) {
         possession,
         isRedZone:  !!sit.isRedZone,
     };
+}
+
+// "TBD" for a kickoff the network hasn't set. On game day or later in the
+// week that's all it says; a game a week+ out keeps its date ("Sat 10/24")
+// since the date itself is firm. The placeholder time is midnight ET, so the
+// date is read in Eastern time.
+function tbdLabel(iso, now) {
+    try {
+        const d = new Date(iso);
+        if (now && Math.round((d - now) / 86400000) >= 7) {
+            const day  = d.toLocaleDateString([], { weekday: 'short', timeZone: 'America/New_York' });
+            const date = d.toLocaleDateString([], { month: 'numeric', day: 'numeric', timeZone: 'America/New_York' });
+            return day + ' ' + date;
+        }
+        return 'TBD';
+    } catch (e) { return 'TBD'; }
 }
 
 function fmtTime(iso, now) {
@@ -1033,8 +1115,8 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
     const totalH      = lineHeights.reduce((a, b) => a + b, 0);
     let   y           = (H - totalH) / 2 + items[0].fs * 0.80;
 
-    // Lines may carry a `parts` array of exactly 2 segments (e.g.
-    // [{text:'UGA',color:brown}, {text:' 21',color:white}]) instead of a single
+    // Lines may carry a `parts` array of segments (e.g. [rank], {text:'UGA',
+    // color:brown}, {text:' 21',color:white}) instead of a single
     // `text` string — used for the live-game score lines so the possession
     // indicator can recolor just the team abbreviation while the score stays
     // white.
@@ -1057,13 +1139,29 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
     const rows = items.map(({ text, fs, color, parts }, i) => {
         if (i > 0) y += lineHeights[i - 1] - items[i - 1].fs * 0.80 + fs * 0.80;
 
-        if (parts && parts.length === 2) {
+        if (parts && parts.length) {
+            // Any number of colored segments in one centered <text>. A `small`
+            // segment (the Top 25 rank) is drawn at RANK_SCALE size, raised so
+            // it sits centered on the capital letters, and the next segment
+            // drops back to the baseline. Spaces live in the segment text
+            // itself (kept by xml:space="preserve").
+            let shift = 0, spans = '';
+            for (const p of parts) {
+                let attrs = `fill="${p.color || color || 'white'}"`;
+                if (p.small) {
+                    const rf = rankFs(fs), up = 0.716 * (fs - rf) / 2;
+                    attrs += ` font-size="${rf}" dy="${(-up - shift).toFixed(2)}"`;
+                    shift = -up;
+                } else if (shift) {
+                    attrs += ` font-size="${fs}" dy="${(-shift).toFixed(2)}"`;
+                    shift = 0;
+                }
+                spans += `<tspan ${attrs}>${escXml(p.text)}</tspan>`;
+            }
             return (
                 `<text x="36" y="${y.toFixed(1)}" text-anchor="middle" xml:space="preserve" ` +
                 `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">` +
-                `<tspan fill="${parts[0].color || color || 'white'}">${escXml(parts[0].text)}</tspan>` +
-                `<tspan fill="${parts[1].color || color || 'white'}"> ${escXml(parts[1].text)}</tspan>` +
-                `</text>`
+                spans + `</text>`
             );
         }
 
@@ -1137,7 +1235,9 @@ async function playFireworks(context, winnerName, winnerColor) {
     } finally {
         flashing.delete(context);
         lastRender.delete(context);
-        refreshButton(context);
+        // A Scoreboard key redraws its slot; a team key refetches its game.
+        if (boardKeys.has(context)) renderBoardKey(context, boardSlotGame.get(context) || null);
+        else refreshButton(context);
     }
 }
 
@@ -1153,6 +1253,9 @@ function setButton(context, lines, lineSpacing, bgColor, force) {
     }
     ws.send(JSON.stringify({ event: 'setImage', context, payload: { image: makeImage(lines, lineSpacing, bg.fill, bg.opacity), target: 0 } }));
 }
+
+// A key still on screen — team key or Scoreboard key.
+function keyAlive(context) { return instances.has(context) || boardKeys.has(context); }
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -1210,14 +1313,14 @@ async function flashButton(context, color, lines, spacing, restColor = 'black', 
     try {
         if (!(followUp && card)) {
             for (let i = 0; i < 5; i++) {
-                if (!instances.has(context)) return; // key was removed mid-flash
+                if (!keyAlive(context)) return; // key was removed mid-flash
                 setButton(context, [''], spacing, color, true);
                 await sleep(200);
                 setButton(context, [''], spacing, restColor, true);
                 await sleep(200);
             }
         }
-        if (card && instances.has(context)) {
+        if (card && keyAlive(context)) {
             setButton(context, card, 1.3, 'black', true);
             await sleep(followUp ? TRY_CARD_MS : SCORE_CARD_MS);
         }
@@ -1225,4 +1328,304 @@ async function flashButton(context, color, lines, spacing, restColor = 'black', 
         flashing.delete(context);
         setButton(context, lines, spacing, restColor, true);
     }
+}
+
+
+// ══ Scoreboard action ═════════════════════════════════════════════════════════
+// A second action in this plugin: every key you drag on becomes one slot of a
+// board showing this week's college games for one group — the Top 25, a
+// conference, or all of FBS — in kickoff order (or by ranking). Same keys as
+// the team action: possession, red zone, score flash + TD/XP/FG/SAF/2PT
+// cards, fireworks, Top 25 ranks.
+//  • Each key stores its own settings, so different pages (or different
+//    blocks of keys on one page) can show different groups — SEC on one
+//    page, Big Ten on another. Keys on the same Stream Deck showing the same
+//    group form one board, filled in key order.
+//  • A settings change applies to the whole board the key belongs to: every
+//    Scoreboard key with the same settings that touches it (side or corner),
+//    and the keys touching those. Two boards stay separate as long as they
+//    don't share a group and border, or are on different pages.
+//  • Each board can have its own custom key background color.
+//  • New keys start on the Top 25.
+//  • Only the visible page's keys exist, so leaving a page and coming back
+//    just shows current scores (per-key memory is cleared on willDisappear).
+//  • More games than keys → the last key shows "+N more" (opens ESPN's
+//    scoreboard for that group). Extra keys show "No Game".
+//  • A week stays up until the Monday 3:00 AM ET after its last game (same
+//    rule as the team keys), then the board moves to next week.
+const BOARD_ACTION = 'com.tj.livecfbscores.scoreboard';
+
+// ESPN group ids. `max` = most games the group can have in a week (one per
+// team), shown in the settings panel as the most keys a board could need.
+const BOARD_SOURCES = {
+    top25: { label: 'Top 25',            group: 80,  max: 25 },
+    1:     { label: 'ACC',               group: 1,   max: 17 },
+    151:   { label: 'American',          group: 151, max: 14 },
+    4:     { label: 'Big 12',            group: 4,   max: 16 },
+    5:     { label: 'Big Ten',           group: 5,   max: 18 },
+    12:    { label: 'Conference USA',    group: 12,  max: 10 },
+    15:    { label: 'MAC',               group: 15,  max: 13 },
+    17:    { label: 'Mountain West',     group: 17,  max: 10 },
+    9:     { label: 'Pac-12',            group: 9,   max: 8  },
+    8:     { label: 'SEC',               group: 8,   max: 16 },
+    37:    { label: 'Sun Belt',          group: 37,  max: 14 },
+    18:    { label: 'FBS Independents',  group: 18,  max: 2  },
+    fbs:   { label: 'All FBS',           group: 80,  max: 69 },
+};
+const BOARD_DEFAULTS = { source: 'top25', sortBy: 'time', sortOrder: 'column', finalsLast: false, showRanks: true, bgColor: null, bgOpacity: 100 };
+
+const boardKeys       = new Map(); // context -> { device, coords, settings }
+const boardSlotGame   = new Map(); // context -> game currently in that slot
+const boardSourceOf   = new Map(); // context -> source the key last rendered (its "+N more" link)
+let   boardOverflow   = new Set(); // contexts acting as "+N more"
+let   boardTimer      = null;
+let   boardRefreshing = false;
+let   boardDebounce   = null;
+let   boardGames      = [];        // every game on any board (drives the 15s cadence)
+
+function boardCfg(settings) {
+    const s = Object.assign({}, BOARD_DEFAULTS, settings || {});
+    if (!BOARD_SOURCES[s.source]) s.source = BOARD_DEFAULTS.source;
+    s.sortBy     = s.sortBy === 'rank' ? 'rank' : 'time';
+    s.sortOrder  = s.sortOrder === 'row' ? 'row' : 'column';
+    s.finalsLast = !!s.finalsLast;
+    s.showRanks  = s.showRanks !== false;
+    s.bgColor    = /^#[0-9a-fA-F]{6}$/.test(String(s.bgColor || '')) ? s.bgColor : null;
+    s.bgOpacity  = s.bgOpacity != null && !isNaN(Number(s.bgOpacity)) ? Number(s.bgOpacity) : 100;
+    return s;
+}
+const boardSig = st => [st.source, st.sortBy, st.sortOrder, st.finalsLast, st.showRanks, st.bgColor || '', st.bgColor ? st.bgOpacity : ''].join('|');
+// Per-board key look: rank toggle + optional custom background (so two
+// conferences on one page are easy to tell apart).
+const boardKeyCfg = st => ({ teamAbbr: '', showRanks: st.showRanks, bgColor: st.bgColor, bgOpacity: st.bgOpacity });
+const sourceUrlMore = src => src === 'top25' || src === 'fbs'
+    ? 'https://www.espn.com/college-football/scoreboard'
+    : 'https://www.espn.com/college-football/scoreboard/_/group/' + BOARD_SOURCES[src].group;
+
+function clearKeyMemory(context) {
+    prevScores.delete(context); lastTd.delete(context); prevState.delete(context);
+    lastRender.delete(context); currentGame.delete(context); flashing.delete(context);
+    lastPossession.delete(context); gameFinalAt.delete(context); boardSlotGame.delete(context);
+}
+
+// The board a key belongs to: same device, same settings, connected through
+// touching keys (8 directions).
+function boardBlock(context) {
+    const start = boardKeys.get(context);
+    if (!start) return [context];
+    const sig = boardSig(start.settings), out = new Set([context]), queue = [context];
+    while (queue.length) {
+        const k = boardKeys.get(queue.shift());
+        for (const [ctx, o] of boardKeys) {
+            if (out.has(ctx) || o.device !== start.device || boardSig(o.settings) !== sig) continue;
+            if (Math.abs(o.coords.row - k.coords.row) <= 1 && Math.abs(o.coords.column - k.coords.column) <= 1) {
+                out.add(ctx); queue.push(ctx);
+            }
+        }
+    }
+    return [...out];
+}
+
+function handleBoardEvent({ event, context, payload, device }) {
+    switch (event) {
+        case 'willAppear': {
+            const raw      = (payload && payload.settings) || {};
+            const settings = boardCfg(raw);
+            const coords   = (payload && payload.coordinates) || { row: 0, column: 0 };
+            boardKeys.set(context, { device: device || '__unknown__', coords, settings });
+            if (!raw.source) ws.send(JSON.stringify({ event: 'setSettings', context, payload: settings }));
+            log('Scoreboard willAppear row=' + coords.row + ' col=' + coords.column + ' source=' + settings.source + ' keys=' + boardKeys.size);
+            if (boardDebounce) clearTimeout(boardDebounce);
+            boardDebounce = setTimeout(() => { boardDebounce = null; refreshBoard(); }, 300);
+            break;
+        }
+        case 'willDisappear':
+            boardKeys.delete(context);
+            boardOverflow.delete(context);
+            boardSourceOf.delete(context);
+            clearKeyMemory(context);
+            if (boardKeys.size === 0 && boardTimer) { clearTimeout(boardTimer); boardTimer = null; log('Scoreboard: no keys — timer stopped'); }
+            break;
+        case 'didReceiveSettings':
+        case 'sendToPlugin': {
+            const k = boardKeys.get(context);
+            const incoming = payload && payload.settings;
+            if (!k || !incoming) break;
+            const next = boardCfg(incoming);
+            if (boardSig(next) === boardSig(k.settings)) break; // our own setSettings echoing back
+            // Find this key's board using its OLD settings, then move the whole board.
+            const block = boardBlock(context);
+            log('Scoreboard settings → ' + boardSig(next) + ' for ' + block.length + ' key(s)');
+            for (const ctx of block) {
+                const o = boardKeys.get(ctx);
+                o.settings = next;
+                clearKeyMemory(ctx);
+                if (ctx !== context) ws.send(JSON.stringify({ event: 'setSettings', context: ctx, payload: next }));
+            }
+            refreshBoard();
+            break;
+        }
+        case 'keyUp': {
+            const k   = boardKeys.get(context);
+            const src = (k && k.settings.source) || 'top25';
+            if (boardOverflow.has(context)) {
+                ws.send(JSON.stringify({ event: 'openUrl', payload: { url: sourceUrlMore(src) } }));
+                break;
+            }
+            const game = boardSlotGame.get(context);
+            if (game && game.link) { ws.send(JSON.stringify({ event: 'openUrl', payload: { url: game.link } })); break; }
+            // "No Game" key: refresh the board and open ESPN's scoreboard for this group
+            refreshBoard();
+            ws.send(JSON.stringify({ event: 'openUrl', payload: { url: sourceUrlMore(src) } }));
+            break;
+        }
+    }
+}
+
+function sortBoardKeys(contexts, order) {
+    return contexts.sort((a, b) => {
+        const ca = boardKeys.get(a).coords, cb = boardKeys.get(b).coords;
+        if (order === 'row') return (ca.row - cb.row) || (ca.column - cb.column);
+        return (ca.column - cb.column) || (ca.row - cb.row);
+    });
+}
+
+// ── Per-group week window (this / last / next week), cached like the team keys' ──
+const groupWindowCache = new Map(); // group -> { at, events }
+async function fetchGroupWindow(group) {
+    if (group === 80) return fetchWeekWindow(); // shared with team keys
+    const hit = groupWindowCache.get(group);
+    if (hit && Date.now() - hit.at < WEEK_WINDOW_TTL_MS) return { events: hit.events };
+    const base    = SCOREBOARD_URL.replace('groups=80', 'groups=' + group);
+    const current = await fetchJson(base);
+    const events  = Array.isArray(current.events) ? current.events.slice() : [];
+    const weekNum = current.week && current.week.number;
+    const sType   = current.leagues && current.leagues[0] && current.leagues[0].season &&
+                    current.leagues[0].season.type && current.leagues[0].season.type.type;
+    if (weekNum != null && sType != null) {
+        const weeks = weekNum > 1 ? [weekNum - 1, weekNum + 1] : [weekNum + 1];
+        const res = await Promise.allSettled(weeks.map(w => fetchJson(`${base}&week=${w}&seasontype=${sType}`)));
+        for (const r of res) if (r.status === 'fulfilled' && Array.isArray(r.value.events)) events.push(...r.value.events);
+    }
+    groupWindowCache.set(group, { at: Date.now(), events });
+    return { events };
+}
+
+// Which week a board shows: the earliest week whose hold hasn't expired —
+// a week holds until the Monday 3:00 AM ET after its last game (same rule
+// team keys use for finals), so Saturday's finals stay up through the
+// weekend and the board flips to next week's matchups Monday morning.
+function boardWeekEvents(allEvents) {
+    const seen = new Set(), weeks = new Map();
+    for (const e of allEvents) {
+        if (!e || !e.id || seen.has(e.id) || !e.competitions || !e.competitions[0] || !e.competitions[0].competitors) continue;
+        seen.add(e.id);
+        const key = (e.season && e.season.type) + '-' + (e.week && e.week.number);
+        if (!weeks.has(key)) weeks.set(key, []);
+        weeks.get(key).push(e);
+    }
+    const list = [...weeks.values()].map(evs => {
+        evs.sort((a, b) => new Date(a.date) - new Date(b.date));
+        return { evs, first: new Date(evs[0].date).getTime(), last: new Date(evs[evs.length - 1].date).getTime() };
+    }).sort((a, b) => a.first - b.first);
+    if (!list.length) return [];
+    const nowMs = Date.now();
+    const pick = list.find(w => nowMs < nextMonday3amAfter(w.last)) || list[list.length - 1];
+    return pick.evs;
+}
+
+// Games for one board, filtered and ordered per its settings.
+function boardGameList(events, st, now) {
+    let games = boardWeekEvents(events)
+        .map(e => { try { return parseEvent(e, now); } catch (err) { log('board parse error:', err.message); return null; } })
+        .filter(Boolean);
+    if (st.source === 'top25') games = games.filter(g => g.awayRank || g.homeRank);
+    if (st.sortBy === 'rank') {
+        const best = g => Math.min(g.awayRank || 99, g.homeRank || 99);
+        games = games.map((g, i) => ({ g, i })).sort((a, b) => (best(a.g) - best(b.g)) || (a.i - b.i)).map(x => x.g);
+    }
+    if (st.finalsLast) games = [...games.filter(g => g.state !== 'final'), ...games.filter(g => g.state === 'final')];
+    return games;
+}
+
+// 15s while any board game is inside a two-minute timeout, else 30s (same rule as team keys).
+function boardDelay() {
+    for (const g of boardGames) {
+        if (g && g.state === 'live' && (g.period === 2 || g.period === 4)) {
+            const sec = parseClockSeconds(g.clock);
+            if (sec !== null && sec <= 120) return 15_000;
+        }
+    }
+    return 30_000;
+}
+
+function scheduleBoard() {
+    if (boardTimer) clearTimeout(boardTimer);
+    if (boardKeys.size === 0) { boardTimer = null; return; }
+    boardTimer = setTimeout(async () => { await refreshBoard(); }, boardDelay());
+}
+
+async function refreshBoard() {
+    if (boardKeys.size === 0) return;
+    if (boardRefreshing) return;
+    boardRefreshing = true;
+    try {
+        const now = new Date();
+        // Boards = same device + same settings.
+        const boards = new Map();
+        for (const [ctx, k] of boardKeys) {
+            const id = k.device + '#' + boardSig(k.settings);
+            if (!boards.has(id)) boards.set(id, { settings: k.settings, keys: [] });
+            boards.get(id).keys.push(ctx);
+        }
+        // One fetch per group in use (Top 25 and All FBS share the FBS window).
+        const groups = [...new Set([...boards.values()].map(b => BOARD_SOURCES[b.settings.source].group))];
+        const windows = new Map();
+        await Promise.all(groups.map(async g => {
+            try { windows.set(g, (await fetchGroupWindow(g)).events || []); }
+            catch (err) { log('Scoreboard fetch error (group ' + g + '):', err.message); windows.set(g, null); }
+        }));
+
+        const overflow = new Set(), allGames = [];
+        for (const b of boards.values()) {
+            const st = b.settings, events = windows.get(BOARD_SOURCES[st.source].group);
+            const sorted = sortBoardKeys(b.keys.slice(), st.sortOrder);
+            for (const ctx of sorted) boardSourceOf.set(ctx, st.source);
+            const cfg   = boardKeyCfg(st);
+            if (!events) { for (const ctx of sorted) if (!flashing.has(ctx)) setButton(ctx, ['CFB', 'Err'], undefined, resolveBgColor(cfg)); continue; }
+            const games = boardGameList(events, st, now);
+            allGames.push(...games);
+            const over  = games.length > sorted.length;
+            const slots = over ? sorted.length - 1 : sorted.length;
+            for (let i = 0; i < slots; i++) renderBoardKey(sorted[i], games[i] || null, cfg);
+            if (over) {
+                const ctx = sorted[sorted.length - 1];
+                overflow.add(ctx);
+                clearKeyMemory(ctx);
+                setButton(ctx, [{ text: '+' + (games.length - slots), fs: 22, color: '#FFD700' }, { text: 'more', fs: 13, color: '#999999' }], 1.3, resolveBgColor(cfg));
+            }
+            log('Scoreboard ' + BOARD_SOURCES[st.source].label + ': ' + games.length + ' games, ' + sorted.length + ' keys');
+        }
+        boardOverflow = overflow;
+        boardGames = allGames;
+    } catch (err) {
+        log('Scoreboard error:', err.message);
+        for (const ctx of boardKeys.keys()) if (!flashing.has(ctx)) setButton(ctx, ['CFB', 'Err']);
+    } finally {
+        boardRefreshing = false;
+        scheduleBoard();
+    }
+}
+
+function renderBoardKey(context, game, cfg) {
+    if (flashing.has(context)) return;
+    const k = boardKeys.get(context);
+    cfg = cfg || boardKeyCfg(k ? k.settings : boardCfg({}));
+    boardSlotGame.set(context, game);
+    if (!game) {
+        prevScores.delete(context); lastTd.delete(context); prevState.delete(context);
+        setButton(context, ['No', 'Game'], undefined, resolveBgColor(cfg));   // matches Live MLB Scoreboard / Live NFL Scoreboard
+        return;
+    }
+    presentGame(context, game, cfg);
 }

@@ -2,9 +2,9 @@
 
 ![Live CFB Scores in action](assets/LiveCFBScoresThumbnail.png)
 
-A Stream Deck plugin that shows live college football scores directly on your keys. Each key tracks one FBS team and updates automatically every 30 seconds.
+A Stream Deck plugin that shows live college football scores directly on your keys. Two actions: **Live CFB Scores** tracks one FBS team per key, and **Live CFB Scoreboard** fills your keys with this week's Top 25, a conference, or all of FBS. Keys update automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.0.18-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.0-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -13,20 +13,31 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
 - **Possession indicator** — the team with the ball is shown in brown, turning orange if they're in the red zone
 - **Two-minute timeout** — the clock turns red during the final 2:00 of the 2nd and 4th quarters
-- **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time
+- **Top 25 rankings** — ranked teams show a small rank before their abbreviation, like ESPN's scoreboard (turn it off with "Show Top 25 rankings" in the settings panel)
+- **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time ("TBD" until the network sets it)
 - **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
 - **Score-change flash** — when a team scores, the key blinks in that team's primary color, then shows a short card with the team and the play (e.g. KC / TD +6, then XP +1 when the kick is good)
 - **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
-- **Gamecast shortcut** — press any key to open that game directly in ESPN Gamecast, or a custom link of your choice (e.g. your regional sports network) once the game actually starts
+- **Gamecast shortcut** — press any key to open that game directly in ESPN Gamecast (the box score once the game is final), or a custom link of your choice (e.g. your regional sports network) once the game actually starts
 - **Off-week shortcut** — if your team has no game scheduled, pressing the key opens that team's full schedule on ESPN instead
 - **No-flicker updates** — keys only redraw when the display actually changes
 - **Multi-key support** — add as many team keys as you want, each refreshes independently
 - **Custom background color** — set a per-key background color and opacity in the settings panel, handy for telling teams apart at a glance across multiple keys
+- **Live CFB Scoreboard action** — a second action that lays out the week: pick the Top 25, any FBS conference, or all of FBS, and each key becomes one game, in kickoff order or by ranking. Different pages can show different boards (SEC on one, Big Ten on another), and each board can have its own background color
 - **All 136 FBS teams** across all 11 conferences (SEC, Big Ten, ACC, Big 12, American, Mountain West, Conference USA, MAC, Sun Belt, Pac-12, and Independents)
 
 ---
 
 ## Recent Updates
+
+**v1.1.0.0**
+- New: **Live CFB Scoreboard** action — drag it onto as many keys as you like and they fill with this week's games, one game per key. Pick what each board shows: the **Top 25**, any **FBS conference** (ACC, American, Big 12, Big Ten, Conference USA, MAC, Mountain West, Pac-12, SEC, Sun Belt, FBS Independents), or **All FBS**. The dropdown shows the most keys each one can need
+- Each board remembers its own choice, so an SEC page, a Big Ten page and a Top 25 page can all live in one profile. Boards with different settings can share a page, too
+- Order by kickoff time or by ranking, fill top-to-bottom or left-to-right, optionally send finals to the end, and give each board its own background color
+- Same keys as the team action: possession and red zone, score flash with TD/XP/FG/SAF/2PT cards, fireworks at the final. More games than keys: the last key shows "+N more"; extra keys show "No Game". Both open ESPN's scoreboard for that board. The week moves on Monday at 3:00 AM ET, same as the team keys
+- New: **Top 25 rankings** on both actions — a small rank before ranked teams' abbreviations. On by default; turn it off with "Show Top 25 rankings" in the settings panel
+- Pregame keys show "TBD" when the network hasn't set the kickoff time yet (instead of a midnight placeholder), on both actions
+- Final games now open ESPN's box score instead of Gamecast, on both actions
 
 **v1.0.18.0**
 - Score flash is now 5 solid blinks of the scoring team's color with no text, so it reads at a glance even on light team colors
@@ -137,7 +148,13 @@ A Stream Deck plugin that shows live college football scores directly on your ke
    - **Custom Link** — opens any URL you enter, such as your regional sports network's live-game page
 4. That's it — the key will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
 
-> **Note:** If Custom Link is selected but the game hasn't started yet, pressing the key opens Gamecast instead — a Custom Link with no URL entered behaves the same way. After the final whistle, the key keeps opening your custom link for 30 minutes to cover post-game coverage, then automatically switches back to Gamecast.
+**Scoreboard:**
+
+1. Drag the **Live CFB Scoreboard** action onto as many keys as you want
+2. In the settings panel, pick what the board shows: Top 25, a conference, or All FBS. Each option lists the most keys it can need (e.g. "SEC (up to 16 keys)"); most weeks need fewer
+3. Optionally choose the order (kickoff or ranking), fill direction, finals last, rankings on/off, and a background color. Changes apply to the whole board the key is part of
+
+> **Note:** If Custom Link is selected but the game hasn't started yet, pressing the key opens Gamecast instead — a Custom Link with no URL entered behaves the same way. After the final whistle, the key keeps opening your custom link for 30 minutes to cover post-game coverage, then automatically switches to ESPN's box score.
 
 ---
 
@@ -179,6 +196,29 @@ Shown when other teams have games this week but yours doesn't. Pressing the key 
 No Game
 ```
 Shown before the season starts or after it ends. Also opens that team's schedule on ESPN when pressed.
+
+**Ranked teams:**
+
+Ranked teams show their Top 25 rank in small gray type before the abbreviation (e.g. `2 UGA 20`). Turn it off with "Show Top 25 rankings" in the settings panel.
+
+---
+
+## The Scoreboard
+
+![Live CFB Scoreboard showing the Top 25](assets/LiveCFBScoreboardInAction.png)
+
+Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (or by ranking). The keys look and act just like the team keys above: rankings, possession and red zone colors, two-minute timeout, the score flash and play card, and fireworks at the final.
+
+- **What to show:** Top 25, any FBS conference, or All FBS. Conference boards include their teams' non-conference games
+- **Key counts:** the dropdown shows the most keys each choice can need (Top 25: up to 25, Big Ten: up to 18, SEC: up to 16, and so on). More games than keys: the last key shows `+N more`. More keys than games: the extra keys show `No Game`. Pressing either opens ESPN's scoreboard for that board
+- **Order:** kickoff time (default) or ranking (the game with the highest-ranked team first)
+- **Fill order:** top-to-bottom (default) or left-to-right
+- **Finals last:** optionally move finished games to the end
+- **Week change:** the board keeps this week up until Monday 3:00 AM ET, then moves to next week
+- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. A settings change applies to the whole board the key is part of. New Scoreboard keys start on the Top 25
+- **Multiple Stream Decks:** each deck (including a Virtual Stream Deck or Stream Deck Mobile) gets its own boards
+
+![An SEC board, a Big Ten board and a Top 25 board on one Stream Deck XL page](assets/LiveCFBScoreboardConferences.png)
 
 ---
 
