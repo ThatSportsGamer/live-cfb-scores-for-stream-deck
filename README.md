@@ -216,6 +216,7 @@ Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (o
 - **Order:** kickoff time (default) or ranking (the game with the highest-ranked team first)
 - **Fill order:** top-to-bottom (default) or left-to-right
 - **Finals last:** optionally move finished games to the end
+- **Tip for smaller Stream Decks** (Mini, Neo, a 15-key MK.2): turn on finals last, so live and upcoming games keep their keys and finished games move to the `+N more` key.
 - **Week change:** the board keeps this week up until Monday 3:00 AM ET, then moves to next week
 - **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. A settings change applies to the whole board the key is part of. New Scoreboard keys start on the Top 25
 - **Multiple Stream Decks:** each deck (including a Virtual Stream Deck or Stream Deck Mobile) gets its own boards
