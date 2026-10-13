@@ -13,7 +13,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
 - **Possession indicator** — the team with the ball is shown in brown, turning orange if they're in the red zone
 - **Two-minute timeout** — the clock turns red during the final 2:00 of the 2nd and 4th quarters
-- **Top 25 rankings** — ranked teams show a small rank before their abbreviation, like ESPN's scoreboard (turn it off with "Show Top 25 rankings" in the settings panel)
 - **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time ("TBD" until the network sets it)
 - **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
 - **Score-change flash** — when a team scores, the key blinks in that team's primary color, then shows a short card with the team and the play (e.g. KC / TD +6, then XP +1 when the kick is good)
@@ -35,7 +34,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - Each board remembers its own choice, so an SEC page, a Big Ten page and a Top 25 page can all live in one profile. Boards with different settings can share a page, too
 - Order by kickoff time or by ranking, fill top-to-bottom or left-to-right, optionally send finals to the end, and give each board its own background color
 - Same keys as the team action: possession and red zone, score flash with TD/XP/FG/SAF/2PT cards, fireworks at the final. More games than keys: the last key shows "+N more"; extra keys show "No Game". Both open ESPN's scoreboard for that board. The week moves on Monday at 3:00 AM ET, same as the team keys
-- New: **Top 25 rankings** on both actions — a small rank before ranked teams' abbreviations. On by default; turn it off with "Show Top 25 rankings" in the settings panel
 - Pregame keys show "TBD" when the network hasn't set the kickoff time yet (instead of a midnight placeholder), on both actions
 - Final games now open ESPN's box score instead of Gamecast, on both actions
 - Bye weeks now show `BYE WEEK` for the whole off week (Monday 3:00 AM ET to Monday 3:00 AM ET). Before, the key jumped ahead to the next game a week early
@@ -154,7 +152,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 1. Drag the **Live CFB Scoreboard** action onto as many keys as you want
 2. In the settings panel, pick what the board shows: Top 25, a conference, or All FBS. Each option lists the most keys it can need (e.g. "SEC (up to 16 keys)"); most weeks need fewer
-3. Optionally choose the order (kickoff or ranking), fill direction, finals last, rankings on/off, and a background color. Changes apply to the whole board the key is part of
+3. Optionally choose the order (kickoff or ranking), fill direction, finals last, and a background color. Changes apply to the whole board the key is part of
 
 > **Note:** If Custom Link is selected but the game hasn't started yet, pressing the key opens Gamecast instead — a Custom Link with no URL entered behaves the same way. After the final whistle, the key keeps opening your custom link for 30 minutes to cover post-game coverage, then automatically switches to ESPN's box score.
 
@@ -199,21 +197,17 @@ No Game
 ```
 Shown before the season starts or after it ends. Also opens that team's schedule on ESPN when pressed.
 
-**Ranked teams:**
-
-Ranked teams show their Top 25 rank in small gray type before the abbreviation (e.g. `2 UGA 20`). Turn it off with "Show Top 25 rankings" in the settings panel.
-
 ---
 
 ## The Scoreboard
 
 ![Live CFB Scoreboard showing the Top 25](assets/LiveCFBScoreboardInAction.png)
 
-Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (or by ranking). The keys look and act just like the team keys above: rankings, possession and red zone colors, two-minute timeout, the score flash and play card, and fireworks at the final.
+Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (or by ranking). The keys look and act just like the team keys above: possession and red zone colors, two-minute timeout, the score flash and play card, and fireworks at the final.
 
 - **What to show:** Top 25, any FBS conference, or All FBS. Conference boards include their teams' non-conference games
 - **Key counts:** the dropdown shows the most keys each choice can need (Top 25: up to 25, Big Ten: up to 18, SEC: up to 16, and so on). More games than keys: the last key shows `+N more`. More keys than games: the extra keys show `No Game`. Pressing either opens ESPN's scoreboard for that board
-- **Order:** kickoff time (default) or ranking (the game with the highest-ranked team first)
+- **Order:** kickoff time (default) or ranking (the game with the highest-ranked team first; ranks are ESPN's, the AP poll until the CFP rankings come out)
 - **Fill order:** top-to-bottom (default) or left-to-right
 - **Finals last:** optionally move finished games to the end
 - **Tip for smaller Stream Decks** (Mini, Neo, a 15-key MK.2): turn on finals last, so live and upcoming games keep their keys and finished games move to the `+N more` key.

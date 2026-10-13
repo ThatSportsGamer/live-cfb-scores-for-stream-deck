@@ -111,11 +111,6 @@
 </div>
 <div class="hint" style="margin-top:-6px;">Tip for smaller Stream Decks (Mini, Neo, a 15-key MK.2): turn this on so live and upcoming games keep their keys and finished games move to +N more.</div>
 
-<div class="checkbox-row">
-    <input type="checkbox" id="showRanks" checked>
-    <label for="showRanks">Show Top 25 rankings</label>
-</div>
-
 <label style="margin-top:4px;">Key Background</label>
 <div class="checkbox-row" style="margin-bottom:0;">
     <input type="checkbox" id="bgEnabled">
@@ -172,7 +167,6 @@
         document.getElementById('sortBy').value    = s.sortBy    || 'time';
         document.getElementById('sortOrder').value = s.sortOrder || 'column';
         document.getElementById('finalsLast').checked = !!s.finalsLast;
-        document.getElementById('showRanks').checked  = s.showRanks !== false;
         var on = !!s.bgColor;
         document.getElementById('bgEnabled').checked = on;
         document.getElementById('bgColorInput').value = s.bgColor || '#000000';
@@ -189,7 +183,6 @@
             sortBy:     document.getElementById('sortBy').value,
             sortOrder:  document.getElementById('sortOrder').value,
             finalsLast: document.getElementById('finalsLast').checked,
-            showRanks:  document.getElementById('showRanks').checked,
             bgColor:    document.getElementById('bgEnabled').checked ? document.getElementById('bgColorInput').value : null,
             bgOpacity:  parseInt(document.getElementById('bgOpacityInput').value, 10),
         };
@@ -200,7 +193,6 @@
 
     FIELDS.forEach(function(id) { document.getElementById(id).addEventListener('change', saveSettings); });
     document.getElementById('finalsLast').addEventListener('change', saveSettings);
-    document.getElementById('showRanks').addEventListener('change', saveSettings);
     document.getElementById('bgEnabled').addEventListener('change', function() {
         document.getElementById('bgControls').classList.toggle('disabled', !this.checked);
         saveSettings();

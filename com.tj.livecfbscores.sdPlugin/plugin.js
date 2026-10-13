@@ -627,46 +627,14 @@ function parseClockSeconds(clockStr) {
 }
 
 // ── Build button display lines ────────────────────────────────────────────────
-// ── Top 25 rank, drawn small and gray before the abbreviation ───────────────
-// Same idea as ESPN's scoreboard ("2 Georgia"), sized at 55% of the line and
-// centered on the letters. "Show Top 25 rankings" (on by default) turns it off.
-const RANK_COLOR = '#BBBBBB';
-const RANK_SCALE = 0.55;
-function showRanks(cfg) { return !cfg || cfg.showRanks !== false; }
-function rankFs(fs)     { return Math.round(fs * RANK_SCALE); }
-// Rank part ("6 " — the trailing space is the gap) or null when unranked/off.
-function rankPart(rank, cfg) {
-    return (rank && showRanks(cfg)) ? { text: rank + ' ', color: RANK_COLOR, small: true } : null;
-}
-function rankWidth(rank, cfg, fs) {
-    return (rank && showRanks(cfg)) ? textWidthPx(rank + ' ', rankFs(fs)) : 0;
-}
-// Largest size (<= maxFs) at which "[rank] ABBR rest" fits the key.
-function fitRanked(rank, cfg, text, maxFs) {
-    let fs = maxFs;
-    while (fs > 9 && textWidthPx(text, fs) + rankWidth(rank, cfg, fs) > 64) fs--;
-    return fs;
-}
-// Matchup line: plain string when nobody's ranked (unchanged look), else parts.
-function matchupLine(game, cfg) {
-    const ar = rankPart(game.awayRank, cfg), hr = rankPart(game.homeRank, cfg);
-    if (!ar && !hr) return game.matchup;
-    let fs = 16;
-    const sep = game.sep || ' @ ';
-    const w = f => textWidthPx(game.awayAbbr + sep + game.homeAbbr, f) +
-                   rankWidth(game.awayRank, cfg, f) + rankWidth(game.homeRank, cfg, f);
-    while (fs > 8 && w(fs) > 64) fs--;
-    return { fs, parts: [ar, { text: game.awayAbbr }, { text: sep }, hr, { text: game.homeAbbr }].filter(Boolean) };
-}
-
 function buildLines(game, cfg) {
     const abbr = cfg.teamAbbr || 'CFB';
     if (!game) return [abbr, 'No Game'];
     if (game.state === 'bye') return [abbr, 'BYE WEEK'];
 
-    if (game.state === 'preview') return [matchupLine(game, cfg), game.time];
-    if (game.state === 'ppd')     return [matchupLine(game, cfg), { text: 'PPD',   fs: 16, color: '#E74C3C' }];
-    if (game.state === 'delay')   return [matchupLine(game, cfg), { text: 'DELAY', fs: 14, color: '#3498DB' }];
+    if (game.state === 'preview') return [game.matchup, game.time];
+    if (game.state === 'ppd')     return [game.matchup, { text: 'PPD',   fs: 16, color: '#E74C3C' }];
+    if (game.state === 'delay')   return [game.matchup, { text: 'DELAY', fs: 14, color: '#3498DB' }];
 
     if (game.state === 'live') {
         const awayBall  = !!game.possession && game.possession === String(game.awayId);
@@ -679,7 +647,7 @@ function buildLines(game, cfg) {
         // which is close enough to the real Helvetica-Bold space width (0.278em)
         // that the plain "ABBR SCORE" width check fitFs() does is already an
         // accurate stand-in for the split rendering.
-        const fs = Math.min(fitRanked(game.awayRank, cfg, awayPlain, ceiling), fitRanked(game.homeRank, cfg, homePlain, ceiling));
+        const fs = Math.min(fitFs(awayPlain, ceiling), fitFs(homePlain, ceiling));
 
         // Possession shown by coloring just the team abbreviation \u2014 the score
         // stays white. Text content never changes length based on possession,
@@ -697,15 +665,13 @@ function buildLines(game, cfg) {
         // leading whitespace, which silently ate the gap on real hardware.
         // The visual gap is now an explicit pixel offset in makeImage instead.
         const awayLine = { fs, parts: [
-            rankPart(game.awayRank, cfg),
             { text: game.awayAbbr,                color: possessionColor(awayBall) },
             { text: ' ' + game.awayScore,         color: 'white' },
-        ].filter(Boolean) };
+        ] };
         const homeLine = { fs, parts: [
-            rankPart(game.homeRank, cfg),
             { text: game.homeAbbr,                color: possessionColor(homeBall) },
             { text: ' ' + game.homeScore,         color: 'white' },
-        ].filter(Boolean) };
+        ] };
 
         // The clock line no longer tracks red zone (moved onto the possessing
         // team's abbreviation above) — it only ever shows the two-minute timeout.
@@ -737,16 +703,12 @@ function buildLines(game, cfg) {
         const awayText = game.awayAbbr + ' ' + game.awayScore;
         const homeText = game.homeAbbr + ' ' + game.homeScore;
         const ceiling   = Math.min(baseTierFs(game.awayAbbr), baseTierFs(game.homeAbbr));
-        const fs        = Math.min(fitRanked(game.awayRank, cfg, awayText, ceiling), fitRanked(game.homeRank, cfg, homeText, ceiling));
+        const fs        = Math.min(fitFs(awayText, ceiling), fitFs(homeText, ceiling));
         const ot        = game.period > 4 ? game.period - 4 : 0;
         const label     = ot === 0 ? 'Final' : (ot === 1 ? 'Final/OT' : 'Final/' + ot + 'OT');
-        const scoreLine = (rank, text) => {
-            const r = rankPart(rank, cfg);
-            return r ? { fs, parts: [r, { text }] } : { text, fs };
-        };
         return [
-            scoreLine(game.awayRank, awayText),
-            scoreLine(game.homeRank, homeText),
+            { text: awayText, fs },
+            { text: homeText, fs },
             { text: label, fs: 12, color: '#FFD700' },
         ];
     }
@@ -1009,7 +971,9 @@ function parseEvent(e, now) {
     const gcLink = (e.links || []).find(l => (l.text || '').toLowerCase() === 'gamecast') || (e.links || [])[0];
     const link   = gcLink?.href || ('https://www.espn.com/college-football/game/_/gameId/' + e.id);
 
-    // AP/CFP poll rank straight off the scoreboard (ESPN sends 99 for unranked)
+    // AP/CFP poll rank straight off the scoreboard (ESPN sends 99 for unranked).
+    // Not drawn on the keys (too small to read); used for the Top 25 board and
+    // the Scoreboard's "order by ranking".
     const rankOf   = c => { const r = c?.curatedRank?.current; return (r >= 1 && r <= 25) ? r : null; };
     const awayRank = rankOf(away), homeRank = rankOf(home);
 
@@ -1137,7 +1101,7 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
     const totalH      = lineHeights.reduce((a, b) => a + b, 0);
     let   y           = (H - totalH) / 2 + items[0].fs * 0.80;
 
-    // Lines may carry a `parts` array of segments (e.g. [rank], {text:'UGA',
+    // Lines may carry a `parts` array of segments (e.g. {text:'UGA',
     // color:brown}, {text:' 21',color:white}) instead of a single
     // `text` string — used for the live-game score lines so the possession
     // indicator can recolor just the team abbreviation while the score stays
@@ -1162,33 +1126,14 @@ function makeImage(lines, lineSpacing = 1.4, bgColor = 'black', bgOpacity = 1) {
         if (i > 0) y += lineHeights[i - 1] - items[i - 1].fs * 0.80 + fs * 0.80;
 
         if (parts && parts.length) {
-            // Any number of colored segments in one centered <text>, so the
-            // device centers the line with its own font metrics. A `small`
-            // segment (the Top 25 rank) can't be raised inside that <text> —
-            // Stream Deck's SVG renderer ignores tspan dy/dx — so it's kept
-            // there invisibly (reserving its width) and drawn again as its own
-            // <text>, raised to sit centered on the capitals. Its x comes from
-            // the glyph-width table; any error is a pixel or so on a small
-            // number. Spaces live in the segment text (xml:space="preserve").
-            let spans = '', overlays = '', offset = 0;
-            const widthOf = p => textWidthPx(p.text, p.small ? rankFs(fs) : fs);
-            const lineW = parts.reduce((w, p) => w + widthOf(p), 0);
-            for (const p of parts) {
-                if (p.small) {
-                    const rf = rankFs(fs), up = 0.716 * (fs - rf) / 2;
-                    spans += `<tspan font-size="${rf}" fill-opacity="0">${escXml(p.text)}</tspan>`;
-                    overlays +=
-                        `<text x="${(36 - lineW / 2 + offset).toFixed(2)}" y="${(y - up).toFixed(2)}" text-anchor="start" xml:space="preserve" ` +
-                        `fill="${p.color || color || 'white'}" font-family="Helvetica Neue,Arial,sans-serif" font-size="${rf}" font-weight="600">${escXml(p.text)}</text>`;
-                } else {
-                    spans += `<tspan fill="${p.color || color || 'white'}">${escXml(p.text)}</tspan>`;
-                }
-                offset += widthOf(p);
-            }
+            // Colored segments in one centered <text>, so the device centers
+            // the line with its own font metrics. Spaces live in the segment
+            // text itself (kept by xml:space="preserve").
+            const spans = parts.map(p => `<tspan fill="${p.color || color || 'white'}">${escXml(p.text)}</tspan>`).join('');
             return (
                 `<text x="36" y="${y.toFixed(1)}" text-anchor="middle" xml:space="preserve" ` +
                 `font-family="Helvetica Neue,Arial,sans-serif" font-size="${fs}" font-weight="600">` +
-                spans + `</text>` + overlays
+                spans + `</text>`
             );
         }
 
@@ -1363,7 +1308,7 @@ async function flashButton(context, color, lines, spacing, restColor = 'black', 
 // board showing this week's college games for one group — the Top 25, a
 // conference, or all of FBS — in kickoff order (or by ranking). Same keys as
 // the team action: possession, red zone, score flash + TD/XP/FG/SAF/2PT
-// cards, fireworks, Top 25 ranks.
+// cards, fireworks.
 //  • Each key stores its own settings, so different pages (or different
 //    blocks of keys on one page) can show different groups — SEC on one
 //    page, Big Ten on another. Keys on the same Stream Deck showing the same
@@ -1399,7 +1344,7 @@ const BOARD_SOURCES = {
     18:    { label: 'FBS Independents',  group: 18,  max: 2  },
     fbs:   { label: 'All FBS',           group: 80,  max: 69 },
 };
-const BOARD_DEFAULTS = { source: 'top25', sortBy: 'time', sortOrder: 'column', finalsLast: false, showRanks: true, bgColor: null, bgOpacity: 100 };
+const BOARD_DEFAULTS = { source: 'top25', sortBy: 'time', sortOrder: 'column', finalsLast: false, bgColor: null, bgOpacity: 100 };
 
 const boardKeys       = new Map(); // context -> { device, coords, settings }
 const boardSlotGame   = new Map(); // context -> game currently in that slot
@@ -1416,15 +1361,14 @@ function boardCfg(settings) {
     s.sortBy     = s.sortBy === 'rank' ? 'rank' : 'time';
     s.sortOrder  = s.sortOrder === 'row' ? 'row' : 'column';
     s.finalsLast = !!s.finalsLast;
-    s.showRanks  = s.showRanks !== false;
     s.bgColor    = /^#[0-9a-fA-F]{6}$/.test(String(s.bgColor || '')) ? s.bgColor : null;
     s.bgOpacity  = s.bgOpacity != null && !isNaN(Number(s.bgOpacity)) ? Number(s.bgOpacity) : 100;
     return s;
 }
-const boardSig = st => [st.source, st.sortBy, st.sortOrder, st.finalsLast, st.showRanks, st.bgColor || '', st.bgColor ? st.bgOpacity : ''].join('|');
-// Per-board key look: rank toggle + optional custom background (so two
+const boardSig = st => [st.source, st.sortBy, st.sortOrder, st.finalsLast, st.bgColor || '', st.bgColor ? st.bgOpacity : ''].join('|');
+// Per-board key look: optional custom background (so two
 // conferences on one page are easy to tell apart).
-const boardKeyCfg = st => ({ teamAbbr: '', showRanks: st.showRanks, bgColor: st.bgColor, bgOpacity: st.bgOpacity });
+const boardKeyCfg = st => ({ teamAbbr: '', bgColor: st.bgColor, bgOpacity: st.bgOpacity });
 const sourceUrlMore = src => src === 'top25' || src === 'fbs'
     ? 'https://www.espn.com/college-football/scoreboard'
     : 'https://www.espn.com/college-football/scoreboard/_/group/' + BOARD_SOURCES[src].group;

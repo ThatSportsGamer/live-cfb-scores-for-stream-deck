@@ -276,15 +276,6 @@
 </div>
 
 <div class="field" style="margin-top: 16px;">
-    <label>Rankings</label>
-    <div class="checkbox-row">
-        <input type="checkbox" id="showRanks" checked/>
-        <label for="showRanks">Show Top 25 rankings</label>
-    </div>
-    <div class="bg-hint">A small rank before ranked teams' abbreviations, like ESPN's scoreboard. Scores get a touch smaller to make room.</div>
-</div>
-
-<div class="field" style="margin-top: 16px;">
     <label>Key Background</label>
     <div class="checkbox-row">
         <input type="checkbox" id="bgEnabled"/>
@@ -304,7 +295,6 @@
     • Press the key anytime to refresh immediately, or to open the game in ESPN Gamecast (the box score once it's final)<br>
     • Shows score, quarter, clock, and possession during live games<br>
     • Shows matchup and kickoff time before the game ("TBD" until the network sets it)<br>
-    • Top 25 teams show their rank<br>
     • Red-zone highlighting and a final score with OT label when the game ends
 </div>
 
@@ -535,7 +525,7 @@
     // Current settings blob — kept in sync with the form and sent as one
     // merged object so changing the team doesn't clobber the background
     // color (and vice versa).
-    var currentSettings = { teamId: null, teamAbbr: null, linkType: 'gamecast', customUrl: null, bgColor: null, bgOpacity: 100, showRanks: true };
+    var currentSettings = { teamId: null, teamAbbr: null, linkType: 'gamecast', customUrl: null, bgColor: null, bgOpacity: 100 };
 
     // ── Autocomplete ──────────────────────────────────────────────────────────
     var acList      = document.getElementById('autocompleteList');
@@ -684,8 +674,6 @@
         currentSettings.customUrl = settings.customUrl  || null;
         currentSettings.bgColor   = settings.bgColor    || null;
         currentSettings.bgOpacity = settings.bgOpacity != null ? settings.bgOpacity : 100;
-        currentSettings.showRanks = settings.showRanks !== false;
-        document.getElementById('showRanks').checked = currentSettings.showRanks;
 
         // Deliberately not touching searchBox.value here — see the comment
         // in selectTeam(). Reopening settings on an already-tracked button
@@ -718,8 +706,7 @@
             linkType:  currentSettings.linkType,
             customUrl: currentSettings.customUrl,
             bgColor:   currentSettings.bgColor,
-            bgOpacity: currentSettings.bgOpacity,
-            showRanks: currentSettings.showRanks
+            bgOpacity: currentSettings.bgOpacity
         };
         websocket.send(JSON.stringify({ event: 'setSettings',  context: uuid,        payload: payload }));
         websocket.send(JSON.stringify({ event: 'sendToPlugin', context: uuid, action: actionUUID, payload: { event: 'settingsChanged', settings: payload } }));
@@ -763,11 +750,6 @@
     });
 
     // ── Background color controls ─────────────────────────────────────────────
-    document.getElementById('showRanks').addEventListener('change', function() {
-        currentSettings.showRanks = this.checked;
-        saveSettings();
-    });
-
     var bgEnabledEl      = document.getElementById('bgEnabled');
     var bgControlsEl      = document.getElementById('bgControls');
     var bgColorInputEl    = document.getElementById('bgColorInput');
