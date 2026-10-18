@@ -4,7 +4,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Two actions: **Live CFB Scores** tracks one FBS team per key, and **Live CFB Scoreboard** fills your keys with this week's Top 25, a conference, or all of FBS. Keys update automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.0-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.1-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -13,7 +13,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
 - **Possession indicator** — the team with the ball is shown in brown, turning orange if they're in the red zone
 - **Two-minute timeout** — the clock turns red during the final 2:00 of the 2nd and 4th quarters
-- **Pre-game** — shows the matchup (e.g. `MRSH @ UGA`) and scheduled kickoff day/time ("TBD" until the network sets it)
+- **Pre-game** — the two teams stacked (`MRSH` over `@ UGA`), then the kickoff day and time ("TBD" until the network sets it). On game day it's just the teams and the kickoff time
 - **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
 - **Score-change flash** — when a team scores, the key blinks in that team's primary color, then shows a short card with the team and the play (e.g. KC / TD +6, then XP +1 when the kick is good)
 - **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
@@ -28,6 +28,12 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 ---
 
 ## Recent Updates
+
+**v1.1.1.0**
+- Pregame keys are easier to read: the teams stack on two lines (away team on top, "@ home" below, with a small "@") and the day and time get their own lines. On game day the day line goes away and the start time is shown larger. Same on team keys and Scoreboard keys
+- Games a week or more out show the date on the day line ("Sat 10/24"), with the time underneath
+- Fixed: a game six and a half days away could show its date instead of its weekday
+- Postponed and delayed games use the same stacked layout
 
 **v1.1.0.0**
 - New: **Live CFB Scoreboard** action — drag it onto as many keys as you like and they fill with this week's games, one game per key. Pick what each board shows: the **Top 25**, any **FBS conference** (ACC, American, Big 12, Big Ten, Conference USA, MAC, Mountain West, Pac-12, SEC, Sun Belt, FBS Independents), or **All FBS**. The dropdown shows the most keys each one can need
@@ -45,10 +51,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - New: when the extra point or two-point try comes in after a touchdown, a quick 2-second XP +1 / 2PT +2 card shows (no blinks)
 - Overtime from the 3rd period on (alternating two-point tries) shows 2PT +2 for each successful try
 - Settings help text now says "key" instead of "button"
-
-**v1.0.17.0**
-- Pregame key shows just the time on game day ("7:30 PM"); the weekday only appears for games later in the week
-- Score lines size up to 18pt to match the other plugins, stepping down only when a line is too wide
 
 Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
@@ -99,10 +101,19 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
 ![Live CFB Scores key states](assets/button-states.png)
 
-**Before the game:**
+**Before the game** (later in the week; the day is gray):
 ```
-MRSH @ UGA
- Sat 7:30 PM
+MRSH
+@ UGA
+Saturday
+7:30 PM
+```
+
+**Game day:**
+```
+MRSH
+@ UGA
+7:30 PM
 ```
 
 **Live game:**
