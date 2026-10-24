@@ -2,6 +2,12 @@
 
 Full version history for Live CFB Scores, newest first. The [README](README.md) lists the three most recent updates.
 
+**v1.1.2.0**
+- Fixed: the week now flips at Monday 3:00 AM Eastern for everyone. Outside the Eastern time zone the Scoreboard and bye weeks could switch weeks too early or too late
+- If ESPN stops responding for a moment, keys keep showing the last scores with a small amber dot instead of "Err" (after 10 minutes without an update they show "Err")
+- Far fewer requests to ESPN when you have many keys or a big Scoreboard on screen
+- Requires Stream Deck 7.1 or later
+
 **v1.1.1.0**
 - Pregame keys are easier to read: the teams stack on two lines (away team on top, "@ home" below, with a small "@") and the day and time get their own lines. On game day the day line goes away and the start time is shown larger. Same on team keys and Scoreboard keys
 - Games a week or more out show the date on the day line ("Sat 10/24"), with the time underneath

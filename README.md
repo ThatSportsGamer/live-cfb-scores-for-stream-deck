@@ -4,7 +4,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Two actions: **Live CFB Scores** tracks one FBS team per key, and **Live CFB Scoreboard** fills your keys with this week's Top 25, a conference, or all of FBS. Keys update automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.1-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.2-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -29,6 +29,12 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## Recent Updates
 
+**v1.1.2.0**
+- Fixed: the week now flips at Monday 3:00 AM Eastern for everyone. Outside the Eastern time zone the Scoreboard and bye weeks could switch weeks too early or too late
+- If ESPN stops responding for a moment, keys keep showing the last scores with a small amber dot instead of "Err" (after 10 minutes without an update they show "Err")
+- Far fewer requests to ESPN when you have many keys or a big Scoreboard on screen
+- Requires Stream Deck 7.1 or later
+
 **v1.1.1.0**
 - Pregame keys are easier to read: the teams stack on two lines (away team on top, "@ home" below, with a small "@") and the day and time get their own lines. On game day the day line goes away and the start time is shown larger. Same on team keys and Scoreboard keys
 - Games a week or more out show the date on the day line ("Sat 10/24"), with the time underneath
@@ -45,13 +51,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - Bye weeks now show `BYE WEEK` for the whole off week (Monday 3:00 AM ET to Monday 3:00 AM ET). Before, the key jumped ahead to the next game a week early
 - Neutral-site games (Texas–Oklahoma in Dallas, bowls, the CFP) show `TEX vs OU` instead of `@`, on both actions
 
-**v1.0.18.0**
-- Score flash is now 5 solid blinks of the scoring team's color with no text, so it reads at a glance even on light team colors
-- New: right after the flash, a 3-second card shows the scoring team and the play — TD +6, FG +3, SAF +2 (TD +7 / TD +8 if the try lands in the same update)
-- New: when the extra point or two-point try comes in after a touchdown, a quick 2-second XP +1 / 2PT +2 card shows (no blinks)
-- Overtime from the 3rd period on (alternating two-point tries) shows 2PT +2 for each successful try
-- Settings help text now says "key" instead of "button"
-
 Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
@@ -59,7 +58,7 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 ## Requirements
 
 - [Elgato Stream Deck](https://www.elgato.com/stream-deck) hardware
-- [Stream Deck software](https://www.elgato.com/downloads) version 6.9 or later (Mac or Windows)
+- [Stream Deck software](https://www.elgato.com/downloads) version 7.1 or later (Mac or Windows)
 - No account or API key required — the plugin uses ESPN's free public scoreboard API
 
 ---
