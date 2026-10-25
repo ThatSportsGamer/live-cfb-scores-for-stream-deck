@@ -6,6 +6,7 @@ Full version history for Live CFB Scores, newest first. The [README](README.md) 
 - Fixed: the week now flips at Monday 3:00 AM Eastern for everyone. Outside the Eastern time zone the Scoreboard and bye weeks could switch weeks too early or too late
 - If ESPN stops responding for a moment, keys keep showing the last scores with a small amber dot instead of "Err" (after 10 minutes without an update they show "Err")
 - Far fewer requests to ESPN when you have many keys or a big Scoreboard on screen
+- Team search now also finds teams by abbreviation (try "ALA", "OSU" or "ND"), with the best matches listed first
 - Requires Stream Deck 7.1 or later
 
 **v1.1.1.0**
