@@ -77,6 +77,7 @@
 
 <label for="source">Show</label>
 <select id="source">
+    <option value="">— Select a source —</option>
     <option value="top25">Top 25 (up to 25 keys)</option>
     <option value="1">ACC (up to 17 keys)</option>
     <option value="151">American (up to 14 keys)</option>
@@ -91,7 +92,9 @@
     <option value="18">FBS Independents (up to 2 keys)</option>
     <option value="fbs">All FBS (up to 69 keys)</option>
 </select>
-<div class="hint">Most weeks need fewer keys. Extra keys show No Game; if you run short, the last key shows +N more. Conference boards include their teams' non-conference games.</div>
+<div class="hint" id="pickHint" style="display:none;">Pick what this key shows.</div>
+<div class="hint" id="countHint">Most weeks need fewer keys. Extra keys show No Game; if you run short, the last key shows +N more. Conference boards include their teams' non-conference games.</div>
+<div class="hint" id="blockHint" style="display:none;"></div>
 
 <label for="sortBy">Order</label>
 <select id="sortBy">
@@ -158,12 +161,16 @@
             try {
                 var data = JSON.parse(evt.data);
                 if (data.event === 'didReceiveSettings') applySettings((data.payload && data.payload.settings) || {});
+                if (data.event === 'sendToPropertyInspector') showBlock(data.payload && data.payload.boardKeys);
             } catch(e) {}
         };
     }
 
     function applySettings(s) {
-        document.getElementById('source').value    = s.source    || 'top25';
+        var src = document.getElementById('source');
+        src.value = s.source || '';
+        if (src.value !== (s.source || '')) src.value = '';   // unknown saved value -> blank
+        syncPick();
         document.getElementById('sortBy').value    = s.sortBy    || 'time';
         document.getElementById('sortOrder').value = s.sortOrder || 'column';
         document.getElementById('finalsLast').checked = !!s.finalsLast;
@@ -176,8 +183,25 @@
         document.getElementById('bgControls').classList.toggle('disabled', !on);
     }
 
+    function showBlock(n) {
+        var el = document.getElementById('blockHint');
+        if (n > 1) {
+            el.textContent = 'This board has ' + n + ' keys. Changing any setting here changes all of them. To keep boards separate, leave a gap between them.';
+            el.style.display = '';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    function syncPick() {
+        var blank = !document.getElementById('source').value;
+        document.getElementById('pickHint').style.display  = blank ? '' : 'none';
+        document.getElementById('countHint').style.display = blank ? 'none' : '';
+    }
+
     function saveSettings() {
         if (!websocket || !piUUID) return;
+        syncPick();
         var settings = {
             source:     document.getElementById('source').value,
             sortBy:     document.getElementById('sortBy').value,

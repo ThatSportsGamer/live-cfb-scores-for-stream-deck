@@ -1493,7 +1493,10 @@ let   boardGames      = [];        // every game on any board (drives the 15s ca
 
 function boardCfg(settings) {
     const s = Object.assign({}, BOARD_DEFAULTS, settings || {});
-    if (!BOARD_SOURCES[s.source]) s.source = BOARD_DEFAULTS.source;
+    // A brand-new key has no source yet: leave it unset (no default is saved) so it
+    // never joins, or moves, a neighbouring board until the user picks one.
+    s.unset = !(settings && settings.source && BOARD_SOURCES[settings.source]);
+    s.source = s.unset ? '' : settings.source;
     s.sortBy     = s.sortBy === 'rank' ? 'rank' : 'time';
     s.sortOrder  = s.sortOrder === 'row' ? 'row' : 'column';
     s.finalsLast = !!s.finalsLast;
@@ -1519,7 +1522,7 @@ function clearKeyMemory(context) {
 // touching keys (8 directions).
 function boardBlock(context) {
     const start = boardKeys.get(context);
-    if (!start) return [context];
+    if (!start || start.settings.unset) return [context];   // an unset key is never part of a board
     const sig = boardSig(start.settings), out = new Set([context]), queue = [context];
     while (queue.length) {
         const k = boardKeys.get(queue.shift());
@@ -1533,15 +1536,26 @@ function boardBlock(context) {
     return [...out];
 }
 
+// Tell the settings panel how many keys make up this key's board, so it can
+// warn that a change applies to all of them.
+function sendBoardInfo(context) {
+    const k = boardKeys.get(context);
+    if (!k) return;
+    const n = k.settings.unset ? 0 : boardBlock(context).length;
+    ws.send(JSON.stringify({ event: 'sendToPropertyInspector', context, payload: { boardKeys: n } }));
+}
+
 function handleBoardEvent({ event, context, payload, device }) {
     switch (event) {
+        case 'propertyInspectorDidAppear':
+            sendBoardInfo(context);
+            break;
         case 'willAppear': {
             const raw      = (payload && payload.settings) || {};
             const settings = boardCfg(raw);
             const coords   = (payload && payload.coordinates) || { row: 0, column: 0 };
             boardKeys.set(context, { device: device || '__unknown__', coords, settings });
-            if (!raw.source) ws.send(JSON.stringify({ event: 'setSettings', context, payload: settings }));
-            log('Scoreboard willAppear row=' + coords.row + ' col=' + coords.column + ' source=' + settings.source + ' keys=' + boardKeys.size);
+            log('Scoreboard willAppear row=' + coords.row + ' col=' + coords.column + ' source=' + (settings.unset ? '(unset)' : settings.source) + ' keys=' + boardKeys.size);
             if (boardDebounce) clearTimeout(boardDebounce);
             boardDebounce = setTimeout(() => { boardDebounce = null; refreshBoard(); }, 300);
             break;
@@ -1570,11 +1584,13 @@ function handleBoardEvent({ event, context, payload, device }) {
                 if (ctx !== context) ws.send(JSON.stringify({ event: 'setSettings', context: ctx, payload: next }));
             }
             refreshBoard();
+            sendBoardInfo(context);
             break;
         }
         case 'keyUp': {
             const k   = boardKeys.get(context);
-            const src = (k && k.settings.source) || 'top25';
+            if (!k || k.settings.unset) break;   // nothing chosen yet — nothing to open
+            const src = k.settings.source;
             if (boardOverflow.has(context)) {
                 ws.send(JSON.stringify({ event: 'openUrl', payload: { url: sourceUrlMore(src) } }));
                 break;
@@ -1667,6 +1683,11 @@ async function refreshBoard() {
         // Boards = same device + same settings.
         const boards = new Map();
         for (const [ctx, k] of boardKeys) {
+            if (k.settings.unset) {   // not on any board: prompt only, never fetched for
+                clearKeyMemory(ctx); boardSourceOf.delete(ctx); boardOverflow.delete(ctx);
+                if (!flashing.has(ctx)) setButton(ctx, ['Select A', 'Source In', 'Settings']);
+                continue;
+            }
             const id = k.device + '#' + boardSig(k.settings);
             if (!boards.has(id)) boards.set(id, { settings: k.settings, keys: [] });
             boards.get(id).keys.push(ctx);
@@ -1712,6 +1733,7 @@ async function refreshBoard() {
 function renderBoardKey(context, game, cfg) {
     if (flashing.has(context)) return;
     const k = boardKeys.get(context);
+    if (k && k.settings.unset) { setButton(context, ['Select A', 'Source In', 'Settings']); return; }
     cfg = cfg || boardKeyCfg(k ? k.settings : boardCfg({}));
     boardSlotGame.set(context, game);
     if (!game) {

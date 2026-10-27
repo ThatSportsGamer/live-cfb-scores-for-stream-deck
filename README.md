@@ -4,7 +4,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Two actions: **Live CFB Scores** tracks one FBS team per key, and **Live CFB Scoreboard** fills your keys with this week's Top 25, a conference, or all of FBS. Keys update automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.2-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.3-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -29,6 +29,10 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## Recent Updates
 
+**v1.1.3.0**
+- Fixed: adding a new Scoreboard key next to an existing board no longer copies that board's source. New Scoreboard keys start with "Select A Source", and changing one key only changes that key (keys placed side by side with the same settings still move together)
+- The Scoreboard settings panel now tells you how many keys are in the board you're editing, since changing a setting changes all of them (leave a gap between boards to keep them separate)
+
 **v1.1.2.0**
 - Fixed: the week now flips at Monday 3:00 AM Eastern for everyone. Outside the Eastern time zone the Scoreboard and bye weeks could switch weeks too early or too late
 - If ESPN stops responding for a moment, keys keep showing the last scores with a small amber dot instead of "Err" (after 10 minutes without an update they show "Err")
@@ -41,16 +45,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - Games a week or more out show the date on the day line ("Sat 10/24"), with the time underneath
 - Fixed: a game six and a half days away could show its date instead of its weekday
 - Postponed and delayed games use the same stacked layout
-
-**v1.1.0.0**
-- New: **Live CFB Scoreboard** action — drag it onto as many keys as you like and they fill with this week's games, one game per key. Pick what each board shows: the **Top 25**, any **FBS conference** (ACC, American, Big 12, Big Ten, Conference USA, MAC, Mountain West, Pac-12, SEC, Sun Belt, FBS Independents), or **All FBS**. The dropdown shows the most keys each one can need
-- Each board remembers its own choice, so an SEC page, a Big Ten page and a Top 25 page can all live in one profile. Boards with different settings can share a page, too
-- Order by kickoff time or by ranking, fill top-to-bottom or left-to-right, optionally send finals to the end, and give each board its own background color
-- Same keys as the team action: possession and red zone, score flash with TD/XP/FG/SAF/2PT cards, fireworks at the final. More games than keys: the last key shows "+N more"; extra keys show "No Game". Both open ESPN's scoreboard for that board. The week moves on Monday at 3:00 AM ET, same as the team keys
-- Pregame keys show "TBD" when the network hasn't set the kickoff time yet (instead of a midnight placeholder), on both actions
-- Final games now open ESPN's box score instead of Gamecast, on both actions
-- Bye weeks now show `BYE WEEK` for the whole off week (Monday 3:00 AM ET to Monday 3:00 AM ET). Before, the key jumped ahead to the next game a week early
-- Neutral-site games (Texas–Oklahoma in Dallas, bowls, the CFP) show `TEX vs OU` instead of `@`, on both actions
 
 Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
@@ -160,7 +154,7 @@ Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (o
 - **Finals last:** optionally move finished games to the end
 - **Tip for smaller Stream Decks** (Mini, Neo, a 15-key MK.2): turn on finals last, so live and upcoming games keep their keys and finished games move to the `+N more` key.
 - **Week change:** the board keeps this week up until Monday 3:00 AM ET, then moves to next week
-- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. A settings change applies to the whole board the key is part of. New Scoreboard keys start on the Top 25
+- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. A settings change applies to the whole board the key is part of. New Scoreboard keys start with "Select A Source" until you pick one, and changing one key only changes that key (keys placed side by side with the same settings still move together)
 - **Multiple Stream Decks:** each deck (including a Virtual Stream Deck or Stream Deck Mobile) gets its own boards
 
 ![An SEC board, a Big Ten board and a Top 25 board on one Stream Deck XL page](assets/LiveCFBScoreboardConferences.png)
