@@ -4,7 +4,7 @@
 
 A Stream Deck plugin that shows live college football scores directly on your keys. Two actions: **Live CFB Scores** tracks one FBS team per key, and **Live CFB Scoreboard** fills your keys with this week's Top 25, a conference, or all of FBS. Keys update automatically every 30 seconds.
 
-![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.3-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
+![Live CFB Scores Plugin](https://img.shields.io/badge/Stream%20Deck-Plugin-blue) ![Version](https://img.shields.io/badge/version-1.1.4-green) [![Elgato Marketplace](https://img.shields.io/badge/Elgato-Marketplace-black)](https://marketplace.elgato.com/product/live-cfb-scores-62e13b96-083e-4ed7-9cc6-78560a6f648c)
 
 ---
 
@@ -29,6 +29,9 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## Recent Updates
 
+**v1.1.4.0**
+- Fixed: removing a key from a Scoreboard now updates the remaining keys right away instead of up to 30 seconds later. For example, delete one of three keys on a three-game board and the last key switches to "+N more" immediately
+
 **v1.1.3.0**
 - Fixed: adding a new Scoreboard key next to an existing board no longer copies that board's source. New Scoreboard keys start with "Select A Source", and changing one key only changes that key (keys placed side by side with the same settings still move together)
 - The Scoreboard settings panel now tells you how many keys are in the board you're editing, since changing a setting changes all of them (leave a gap between boards to keep them separate)
@@ -39,12 +42,6 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 - Far fewer requests to ESPN when you have many keys or a big Scoreboard on screen
 - Team search now also finds teams by abbreviation (try "ALA", "OSU" or "ND"), with the best matches listed first
 - Requires Stream Deck 7.1 or later
-
-**v1.1.1.0**
-- Pregame keys are easier to read: the teams stack on two lines (away team on top, "@ home" below, with a small "@") and the day and time get their own lines. On game day the day line goes away and the start time is shown larger. Same on team keys and Scoreboard keys
-- Games a week or more out show the date on the day line ("Sat 10/24"), with the time underneath
-- Fixed: a game six and a half days away could show its date instead of its weekday
-- Postponed and delayed games use the same stacked layout
 
 Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
