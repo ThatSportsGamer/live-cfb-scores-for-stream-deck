@@ -29,6 +29,7 @@
         .note-box { padding: 9px 11px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid #555; border-radius: var(--radius); font-size: 11px; color: #888; line-height: 1.6; }
         .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .hint { font-size: 11px; color: #888; line-height: 1.5; margin: -8px 0 14px; }
+        .hint:empty { display: none; }
         .checkbox-row input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent-hi); }
         .checkbox-row label { margin-bottom: 0; color: var(--text); font-size: 12px; text-transform: none; letter-spacing: normal; cursor: pointer; }
         .bg-controls {
@@ -92,8 +93,8 @@
     <option value="18">FBS Independents (up to 2 keys)</option>
     <option value="fbs">All FBS (up to 69 keys)</option>
 </select>
-<div class="hint" id="pickHint" style="display:none;">Pick what this key shows.</div>
-<div class="hint" id="countHint">Most weeks need fewer keys. Extra keys show No Game; if you run short, the last key shows +N more. Conference boards include their teams' non-conference games.</div>
+<div class="hint" id="pickHint" style="display:none;"></div>
+<div class="hint" id="countHint">Most weeks need fewer keys.</div>
 <div class="hint" id="blockHint" style="display:none;"></div>
 
 <label for="sortBy">Order</label>
@@ -112,7 +113,7 @@
     <input type="checkbox" id="finalsLast">
     <label for="finalsLast">Send completed games to the end of the list</label>
 </div>
-<div class="hint" style="margin-top:-6px;">Tip for smaller Stream Decks (Mini, Neo, a 15-key MK.2): turn this on so live and upcoming games keep their keys and finished games move to +N more.</div>
+<div class="hint" style="margin-top:-6px;">Handy on smaller Stream Decks.</div>
 
 <label style="margin-top:4px;">Key Background</label>
 <div class="checkbox-row" style="margin-bottom:0;">
@@ -124,21 +125,10 @@
     <input type="range" id="bgOpacityInput" min="10" max="100" value="100"/>
     <span class="opacity-value" id="bgOpacityValue">100%</span>
 </div>
-<div class="bg-hint" style="margin-bottom:14px;">Handy for telling boards apart, like an SEC board and a Big Ten board on the same page. Lighter or brighter colors can make the white text harder to read.</div>
-
-<div class="info-box">
-    <strong>How it works:</strong><br>
-    • Place this action on as many keys as you want — each key is one game<br>
-    • Shows this week's games in kickoff order (or by ranking); the week moves on Monday at 3:00 AM ET<br>
-    • Live games show possession and the red zone, flash on every score, and show the play (TD +6, XP +1, FG +3, SAF +2, 2PT +2)<br>
-    • Keys refresh every <strong>30 seconds</strong> (every 15 in the two-minute timeout)<br>
-    • Press any key to open that game in ESPN Gamecast (the box score once it's final)<br>
-    • Changes here apply to this whole board: the block of Scoreboard keys this key is part of
-</div>
+<div class="bg-hint" style="margin-bottom:14px;">Light colors can make the text hard to read.</div>
 
 <div class="note-box">
-    <strong>Different boards on different pages:</strong> set up an SEC page, a Big Ten page and a Top 25 page — each page's keys remember their own choice. Two boards can share a page too, as long as their keys don't touch. New Scoreboard keys start on the Top 25. Each Stream Deck you use gets its own board.<br><br>
-    Want just one team? Use the <strong>Live CFB Scores</strong> action instead.
+    For one team, use the <strong>Live CFB Scores</strong> action.
 </div>
 
 <script>
@@ -186,7 +176,7 @@
     function showBlock(n) {
         var el = document.getElementById('blockHint');
         if (n > 1) {
-            el.textContent = 'This board has ' + n + ' keys. Changing any setting here changes all of them. To keep boards separate, leave a gap between them.';
+            el.textContent = 'Changes apply to all ' + n + ' touching keys.';
             el.style.display = '';
         } else {
             el.style.display = 'none';

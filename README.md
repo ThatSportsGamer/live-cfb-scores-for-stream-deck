@@ -34,7 +34,7 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 **v1.1.3.0**
 - Fixed: adding a new Scoreboard key next to an existing board no longer copies that board's source. New Scoreboard keys start with "Select A Source", and changing one key only changes that key (keys placed side by side with the same settings still move together)
-- The Scoreboard settings panel now tells you how many keys are in the board you're editing, since changing a setting changes all of them (leave a gap between boards to keep them separate)
+- The Scoreboard settings panel now tells you how many keys are in the board you're editing, since changing a setting changes all of them
 
 **v1.1.2.0**
 - Fixed: the week now flips at Monday 3:00 AM Eastern for everyone. Outside the Eastern time zone the Scoreboard and bye weeks could switch weeks too early or too late
@@ -151,7 +151,7 @@ Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (o
 - **Finals last:** optionally move finished games to the end
 - **Tip for smaller Stream Decks** (Mini, Neo, a 15-key MK.2): turn on finals last, so live and upcoming games keep their keys and finished games move to the `+N more` key.
 - **Week change:** the board keeps this week up until Monday 3:00 AM ET, then moves to next week
-- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. A settings change applies to the whole board the key is part of. New Scoreboard keys start with "Select A Source" until you pick one, and changing one key only changes that key (keys placed side by side with the same settings still move together)
+- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. Keys with the same settings join one board even if they don't touch. A settings change covers the key and every touching key with the same settings, so leave a gap if you want to change one group on its own. New Scoreboard keys start with "Select A Source" until you pick one, and changing one key only changes that key (keys placed side by side with the same settings still move together)
 - **Multiple Stream Decks:** each deck (including a Virtual Stream Deck or Stream Deck Mobile) gets its own boards
 
 ![An SEC board, a Big Ten board and a Top 25 board on one Stream Deck XL page](assets/LiveCFBScoreboardConferences.png)
