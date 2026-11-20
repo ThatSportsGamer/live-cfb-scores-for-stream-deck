@@ -661,7 +661,7 @@
     // same-machine) WebSocket before the ESPN fetch finishes, so without
     // this the dropdowns would sync against the temporary fallback list and
     // then never get refreshed once the live list swaps in — reopening a
-    // configured button would show the right team in the "Tracking:" banner
+    // configured key would show the right team in the "Tracking:" banner
     // but "All Conferences" / "— Select a team —" in the dropdowns above it.
     function syncTeamSelectionUI() {
         if (!currentSettings.teamId) { showSelectedTeamBanner(''); return; }
@@ -685,7 +685,7 @@
         currentSettings.bgOpacity = settings.bgOpacity != null ? settings.bgOpacity : 100;
 
         // Deliberately not touching searchBox.value here — see the comment
-        // in selectTeam(). Reopening settings on an already-tracked button
+        // in selectTeam(). Reopening settings on an already-tracked key
         // should show an empty search box, not the team name sitting in it
         // as if it were a live query.
         syncTeamSelectionUI();
@@ -736,7 +736,7 @@
         document.getElementById('customUrlField').style.display = (linkSel.value === 'custom') ? 'block' : 'none';
     }
 
-    // ── Button-press link controls ───────────────────────────────────────────
+    // ── Key-press link controls ───────────────────────────────────────────
     document.getElementById('linkType').addEventListener('change', function() {
         currentSettings.linkType = this.value;
         toggleCustomUrlField();
