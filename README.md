@@ -1,4 +1,4 @@
-# Live CFB Scores — Stream Deck Plugin
+# Live CFB Scores: Stream Deck Plugin
 
 ![Live CFB Scores in action](assets/LiveCFBScoresThumbnail.png)
 
@@ -10,19 +10,19 @@ A Stream Deck plugin that shows live college football scores directly on your ke
 
 ## Features
 
-- **Live scores** — shows away score, home score, quarter, and game clock while a game is in progress
-- **Possession indicator** — the team with the ball is shown in brown, turning orange if they're in the red zone
-- **Two-minute timeout** — the clock turns red during the final 2:00 of the 2nd and 4th quarters
-- **Pre-game** — the two teams stacked (`MRSH` over `@ UGA`), then the kickoff day and time ("TBD" until the network sets it). On game day it's just the teams and the kickoff time
-- **Final scores** — shows the final score with a "Final" label, including OT/2OT labeling for overtime games
-- **Score-change flash** — when a team scores, the key blinks in that team's primary color, then shows a short card with the team and the play (e.g. KC / TD +6, then XP +1 when the kick is good)
-- **End-of-game fireworks** — a short celebratory animation in the winning team's colors plays when the game ends
-- **Gamecast shortcut** — press any key to open that game directly in ESPN Gamecast (the box score once the game is final), or a custom link of your choice (e.g. your regional sports network) once the game actually starts
-- **Off-week shortcut** — if your team has no game scheduled, pressing the key opens that team's full schedule on ESPN instead
-- **No-flicker updates** — keys only redraw when the display actually changes
-- **Multi-key support** — add as many team keys as you want, each refreshes independently
-- **Custom background color** — set a per-key background color and opacity in the settings panel, handy for telling teams apart at a glance across multiple keys
-- **Live CFB Scoreboard action** — a second action that lays out the week: pick the Top 25, any FBS conference, or all of FBS, and each key becomes one game, in kickoff order or by ranking. Different pages can show different boards (SEC on one, Big Ten on another), and each board can have its own background color
+- **Live scores:** shows away score, home score, quarter, and game clock while a game is in progress
+- **Possession indicator:** the team with the ball is shown in brown, turning orange if they're in the red zone
+- **Two-minute timeout:** the clock turns red during the final 2:00 of the 2nd and 4th quarters
+- **Pregame:** the two teams stacked (`MRSH` over `@ UGA`), then the kickoff day and time ("TBD" until the network sets it). On game day it's just the teams and the kickoff time
+- **Final scores:** shows the final score with a "Final" label, including OT/2OT labeling for overtime games
+- **Score-change flash:** when a team scores, the key blinks in that team's primary color, then shows a short card with the team and the play (e.g. KC / TD +6, then XP +1 when the kick is good)
+- **End-of-game fireworks:** a short celebratory animation in the winning team's colors plays when the game ends
+- **Gamecast shortcut:** press any key to open that game directly in ESPN Gamecast (the box score once the game is final), or a custom link of your choice (e.g. your regional sports network) once the game actually starts
+- **Off-week shortcut:** if your team has no game scheduled, pressing the key opens that team's full schedule on ESPN instead
+- **No-flicker updates:** keys only redraw when the display actually changes
+- **Multi-key support:** add as many team keys as you want, each refreshes independently
+- **Custom background color:** set a per-key background color and opacity in the settings panel, handy for telling teams apart at a glance across multiple keys
+- **Live CFB Scoreboard action:** a second action that lays out the week: pick the Top 25, any FBS conference, or all of FBS, and each key becomes one game, in kickoff order or by ranking. Different pages can show different boards (SEC on one, Big Ten on another), and each board can have its own background color
 - **All 136 FBS teams** across all 11 conferences (SEC, Big Ten, ACC, Big 12, American, Mountain West, Conference USA, MAC, Sun Belt, Pac-12, and Independents)
 
 ---
@@ -48,7 +48,7 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 
 - [Elgato Stream Deck](https://www.elgato.com/stream-deck) hardware
 - [Stream Deck software](https://www.elgato.com/downloads) version 7.1 or later (Mac or Windows)
-- No account or API key required — the plugin uses ESPN's free public scoreboard API
+- No account or API key required—the plugin uses ESPN's free public scoreboard API
 
 ---
 
@@ -62,7 +62,7 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 **Manual install**
 
 1. Download the latest **`Live CFB Scores.streamDeckPlugin`** from the [Releases](../../releases) page
-2. Double-click the file — Stream Deck will install it automatically
+2. Double-click the file—Stream Deck will install it automatically
 
 ---
 
@@ -71,9 +71,9 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 1. Drag the **Live CFB Scores** action onto any key
 2. In the settings panel on the right, find your team by typing into the search box or by picking a conference and then a team from the dropdowns
 3. Choose what happens when you press the key:
-   - **ESPN Gamecast (default)** — opens the game's live Gamecast page
-   - **Custom Link** — opens any URL you enter, such as your regional sports network's live-game page
-4. That's it — the key will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
+   - **ESPN Gamecast (default):** opens the game's live Gamecast page
+   - **Custom Link:** opens any URL you enter, such as your regional sports network's live-game page
+4. That's it—the key will load your team's current or upcoming game within a few seconds and refresh every 30 seconds from there
 
 **Scoreboard:**
 
@@ -81,7 +81,7 @@ Older updates: see the full version history in [CHANGELOG.md](CHANGELOG.md).
 2. In the settings panel, pick what the board shows: Top 25, a conference, or All FBS. Each option lists the most keys it can need (e.g. "SEC (up to 16 keys)"); most weeks need fewer
 3. Optionally choose the order (kickoff or ranking), fill direction, finals last, and a background color. Changes apply to the whole board the key is part of
 
-> **Note:** If Custom Link is selected but the game hasn't started yet, pressing the key opens Gamecast instead — a Custom Link with no URL entered behaves the same way. After the final whistle, the key keeps opening your custom link for 30 minutes to cover post-game coverage, then automatically switches to ESPN's box score.
+> **Note:** If Custom Link is selected but the game hasn't started yet, pressing the key opens Gamecast instead—a Custom Link with no URL entered behaves the same way. After the final whistle, the key keeps opening your custom link for 30 minutes to cover postgame coverage, then automatically switches to ESPN's box score.
 
 ---
 
@@ -148,22 +148,22 @@ Each **Live CFB Scoreboard** key is one game from this week, in kickoff order (o
 - **Finals last:** optionally move finished games to the end
 - **Tip for smaller Stream Decks** (Mini, Neo, a 15-key MK.2): turn on finals last, so live and upcoming games keep their keys and finished games move to the `+N more` key.
 - **Week change:** the board keeps this week up until Monday 3:00 AM ET, then moves to next week
-- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. Keys with the same settings join one board even if they don't touch. A settings change covers the key and every touching key with the same settings, so leave a gap if you want to change one group on its own. New Scoreboard keys start with "Select A Source" until you pick one, and changing one key only changes that key (keys placed side by side with the same settings still move together)
+- **Multiple boards:** each key remembers its own settings, so different pages can show different boards. Boards can share a page too: give each one its own background color to tell them apart. Keys with the same settings join one board even if they don't touch. A settings change covers the key and every touching key with the same settings, so leave a gap if you want to change one group on its own. New Scoreboard keys start with "Select a Source" until you pick one, and changing one key only changes that key (keys placed side by side with the same settings still move together)
 - **Multiple Stream Decks:** each deck (including a Virtual Stream Deck or Stream Deck Mobile) gets its own boards
 
-![An SEC board, a Big Ten board and a Top 25 board on one Stream Deck XL page](assets/LiveCFBScoreboardConferences.png)
+![An SEC board, a Big Ten board, and a Top 25 board on one Stream Deck XL page](assets/LiveCFBScoreboardConferences.png)
 
 ---
 
 ## How It Works
 
-The plugin polls [ESPN's public college football scoreboard API](https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard) once every 30 seconds per key (down to every 15 seconds during the two-minute timeout of the 2nd and 4th quarters). No API key or account is required. The plugin is fully self-contained — it uses only Node.js built-in modules and requires no external dependencies. Each team's abbreviation, name, and color are read directly from that response, so there's no separate team database to keep in sync with ESPN.
+The plugin polls [ESPN's public college football scoreboard API](https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard) once every 30 seconds per key (down to every 15 seconds during the two-minute timeout of the 2nd and 4th quarters). No API key or account is required. The plugin is fully self-contained—it uses only Node.js built-in modules and requires no external dependencies. Each team's abbreviation, name, and color are read directly from that response, so there's no separate team database to keep in sync with ESPN.
 
-Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 17-day window (seven days back, ten days ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final — so the key holds onto a result until the next game appears on the schedule (through the following Monday, 3:00 AM ET, if it finished before then).
+Because FBS teams play roughly once per week rather than daily, the plugin queries a rolling 17-day window (seven days back, ten days ahead) and picks the most relevant game for your team: a game in progress takes priority over an upcoming game, which takes priority over last week's final—so the key holds onto a result until the next game appears on the schedule (through the following Monday, 3:00 AM ET, if it finished before then).
 
 Scoreboard keys reuse that same window: every board on every deck, whatever it shows, is filled from the one shared fetch (conference boards just filter it by each team's conference), so adding boards doesn't add requests to ESPN.
 
-The settings panel's team picker works the same way — it fetches ESPN's full FBS standings once when opened to build its searchable list of all 136 teams, since a single scoreboard poll only ever contains teams that have games in the current window. If that fetch fails, the picker falls back to a bundled list so it's never empty.
+The settings panel's team picker works the same way—it fetches ESPN's full FBS standings once when opened to build its searchable list of all 136 teams, since a single scoreboard poll only ever contains teams that have games in the current window. If that fetch fails, the picker falls back to a bundled list so it's never empty.
 
 ---
 
@@ -175,7 +175,7 @@ Open Stream Deck → Preferences → Plugins, select **Live CFB Scores**, and cl
 
 ## Contributing
 
-Bug reports and feature requests are welcome — open an [Issue](../../issues) to get started.
+Bug reports and feature requests are welcome—open an [Issue](../../issues) to get started.
 
 ---
 
