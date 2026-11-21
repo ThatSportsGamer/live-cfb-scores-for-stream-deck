@@ -642,7 +642,9 @@ function parseClockSeconds(clockStr) {
 // ── Build key display lines ────────────────────────────────────────────────
 function buildLines(game, cfg) {
     const abbr = cfg.teamAbbr || 'CFB';
-    if (!game) return [abbr, 'No Game'];
+    // Offseason only when the whole league is done (seasonIdle); a team that's
+    // merely out of the window while others play (playoff bye, eliminated) keeps "No Game".
+    if (!game) return leagueIdle ? offseasonLines(abbr) : [abbr, 'No Game'];
     if (game.state === 'bye') return [abbr, 'BYE WEEK'];
 
     if (game.state === 'preview') return pregameLines(game.awayAbbr, game.homeAbbr, game.neutral, game.day, game.time);
@@ -947,7 +949,7 @@ function fetchTeamGame(teamId) {
     // Don't roll to the next day's slate until 2am — covers late-running games
     if (!DEBUG_ANCHOR_DATE && now.getHours() < 2) now.setDate(now.getDate() - 1);
 
-    return fetchWeekWindow().then(data => parseGames(data, teamId, now));
+    return fetchWeekWindow().then(data => { leagueIdle = seasonIdle(data?.events || []); return parseGames(data, teamId, now); });
 }
 
 // Pick the single most relevant event for this team out of a multi-week scoreboard:
@@ -1009,6 +1011,9 @@ function parseGames(data, teamId, now) {
                 if (time > recentFinalTime) { recentFinal = e; recentFinalTime = time; }
             }
             if (recentFinal && Date.now() < nextMonday3amAfter(recentFinalTime)) best = recentFinal;
+            // Only finals left and the last one's hold has passed: the season is over
+            // for this team (No Game while others play on, Offseason once the league is idle).
+            else if (bestRank === 1) { log('Season over for team', teamId); return null; }
         }
 
         return parseEvent(best, now);
@@ -1155,6 +1160,24 @@ function resolveBgColor(cfg) {
 // (Windows + XL, Mac + Mini) with a separate font-test plugin, 2026-10-17.
 const PRE_TEAM_FS = 16, PRE_AT_FS = 10, PRE_DAY_FS = 11.5, PRE_TIME_FS = 11.5, PRE_GAMEDAY_TIME_FS = 14;
 const PRE_SPACING = 1.12, PRE_DAY_COLOR = '#BBBBBB', PRE_MAX_W = 66;
+const PRESEASON_COLOR = '#2ECC71';   // preseason day line (same green as Live MLB Scores' spring training line)
+
+// Offseason: nothing left on the schedule: the last final is past its hold and
+// nothing is coming up in ESPN's last / this / next week window. The team (or the board's
+// league) over a gray "Offseason", in place of the old "No Game". A long
+// name with a space goes on two lines rather than shrinking past readable.
+function offseasonLines(name) {
+    const fit = (t, max) => { let fs = max; while (fs > 9 && preWidth(t, fs) > PRE_MAX_W) fs -= 0.5; return fs; };
+    const words = String(name).split(' ');
+    if (words.length > 1 && fit(name, 18) < 12) {
+        const mid = Math.ceil(words.length / 2);
+        const a = words.slice(0, mid).join(' '), b = words.slice(mid).join(' ');
+        const fs = Math.min(fit(a, 16), fit(b, 16));
+        return [{ text: a, fs }, { text: b, fs }, { text: 'Offseason', fs: PRE_DAY_FS, color: PRE_DAY_COLOR }];
+    }
+    return [{ text: name, fs: fit(name, 18) }, { text: 'Offseason', fs: PRE_DAY_FS, color: PRE_DAY_COLOR }];
+}
+
 // Helvetica-Bold advance widths (per 1000 em) — only used to shrink a team line
 // that can't fit at 16 (e.g. G League's RCITY / VALLEY); unknown glyphs count wide.
 const PRE_GLYPHS = {
@@ -1162,7 +1185,10 @@ const PRE_GLYPHS = {
     J: 556, K: 722, L: 611, M: 889, N: 722, O: 778, P: 667, Q: 778, R: 722,
     S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
     0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556,
-    '&': 778, '-': 333, '.': 278, '@': 975, v: 556, s: 556, ' ': 278,
+    '&': 778, '-': 333, '.': 278, '@': 975, ' ': 278,
+    // lowercase + slash (Helvetica Bold) for "Offseason", league names and the PRE day line
+    '/': 278, a: 556, b: 611, c: 556, d: 611, e: 556, f: 333, g: 611, h: 611, i: 278, j: 278, k: 556, l: 278, m: 889,
+    n: 611, o: 611, p: 611, q: 611, r: 389, s: 556, t: 333, u: 611, v: 556, w: 778, x: 556, y: 556, z: 500,
 };
 function preWidth(str, fs) {
     let u = 0;
@@ -1200,8 +1226,9 @@ function pregameLines(awayAbbr, homeAbbr, neutral, day, time, last) {
         { text: awayAbbr, fs: preFitFs(0, awayAbbr) },
         { home: homeAbbr, pre, afs: PRE_AT_FS, fs: preFitFs(preWidth(pre + ' ', PRE_AT_FS), homeAbbr) },
     ];
-    if (last)     lines.push(last);
-    else if (day) lines.push({ text: day, fs: PRE_DAY_FS, color: PRE_DAY_COLOR }, { text: time, fs: PRE_TIME_FS });
+    if (Array.isArray(last)) lines.push(...last);
+    else if (last) lines.push(last);
+    else if (day)  lines.push({ text: day, fs: PRE_DAY_FS, color: PRE_DAY_COLOR }, { text: time, fs: PRE_TIME_FS });
     else          lines.push({ text: time, fs: PRE_GAMEDAY_TIME_FS });
     lines.spacing = PRE_SPACING;
     return lines;
@@ -1623,6 +1650,17 @@ function sortBoardKeys(contexts, order) {
 // a week holds until the Monday 3:00 AM ET after its last game (same rule
 // team keys use for finals), so Saturday's finals stay up through the
 // weekend and the board flips to next week's matchups Monday morning.
+let leagueIdle = false;   // set on each fetch; buildLines shows Offseason instead of No Game while true
+
+// Offseason for the whole league: nothing in the window is upcoming or live, and
+// every final is past its hold (same rule as the team keys).
+function seasonIdle(allEvents) {
+    return !allEvents.some(e => {
+        const st = (e.competitions?.[0]?.status || e.status)?.type?.state;
+        return st !== 'post' || Date.now() < nextMonday3amAfter(new Date(e.date).getTime());
+    });
+}
+
 function boardWeekEvents(allEvents) {
     const seen = new Set(), weeks = new Map();
     for (const e of allEvents) {
@@ -1712,6 +1750,7 @@ async function refreshBoard() {
             for (const ctx of sorted) boardSourceOf.set(ctx, st.source);
             const cfg   = boardKeyCfg(st);
             if (!events) { for (const ctx of sorted) if (!flashing.has(ctx)) setKey(ctx, ['CFB', 'Err'], undefined, resolveBgColor(cfg)); continue; }
+            if (seasonIdle(events)) { sorted.forEach((ctx, i) => renderBoardOffseason(ctx, i === 0, BOARD_SOURCES[st.source].label, cfg)); continue; }
             const games = boardGameList(events, st, now);
             allGames.push(...games);
             const over  = games.length > sorted.length;
@@ -1734,6 +1773,15 @@ async function refreshBoard() {
         boardRefreshing = false;
         scheduleBoard();
     }
+}
+
+// Offseason board: the first key names the league over "Offseason", the rest go
+// blank (a press still opens the league's scores page).
+function renderBoardOffseason(context, first, label, cfg) {
+    if (flashing.has(context)) return;
+    boardSlotGame.set(context, null);
+    prevScores.delete(context); lastTd.delete(context); prevState.delete(context);
+    setKey(context, first ? offseasonLines(label) : [{ text: '', fs: 16 }], 1.4, resolveBgColor(cfg));
 }
 
 function renderBoardKey(context, game, cfg) {
