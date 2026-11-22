@@ -2,6 +2,9 @@
 
 Full version history for Live CFB Scores, newest first. The [README](README.md) lists the three most recent updates.
 
+**v1.1.6.0**
+- New: once the whole season is over, team keys show the team over "Offseason" instead of "No Game", and a Scoreboard shows its name (Top 25, SEC, and so on) over "Offseason" on its first key, with the rest blank. A team that's off while others still play (waiting on a bowl, say) still shows "No Game"
+
 **v1.1.5.0**
 - Shorter settings panels (the details are in the README), and the Scoreboard board hint is fixed: it now says how many touching keys a change applies to
 - Behind the scenes: the code now says "key" instead of "button" throughout
